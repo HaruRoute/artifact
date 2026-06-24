@@ -1,0 +1,59 @@
+services:
+
+  mysql:
+    image: mysql:8.0
+    container_name: haruroute-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: chatbot_db
+      MYSQL_USER: ${MYSQL_USER:-ssafy}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-ssafy}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: haruroute-backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/chatbot_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&useSSL=false
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-ssafy}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-ssafy}
+      JWT_SECRET: ${JWT_SECRET}
+      KTO_SERVICE_KEY: ${KTO_SERVICE_KEY}
+      ODSAY_API_KEY: ${ODSAY_API_KEY}
+      KAKAO_REST_API_KEY: ${KAKAO_REST_API_KEY}
+      AI_SERVER_URL: http://ai_server:8000
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: haruroute-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  ai_server:
+    build: ./ai_server
+    container_name: haruroute-ai-server
+    ports:
+      - "8000:8000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    volumes:
+      - chroma_data:/app/chroma_data
+
+volumes:
+  mysql_data:
+  chroma_data:
