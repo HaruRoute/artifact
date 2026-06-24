@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>관광지 추천 챗봇 - 프로젝트 간트차트</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
+
+  .container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+
+  h1 { font-size: 22px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+
+  .gantt-wrapper { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); overflow: hidden; }
+
+  .gantt-header { display: grid; background: #1a1a2e; color: #fff; font-size: 12px; font-weight: 600; }
+  .gantt-header-row { display: contents; }
+  .h-task { padding: 12px 16px; min-width: 200px; border-right: 1px solid rgba(255,255,255,0.1); }
+  .h-weeks { display: flex; flex: 1; }
+  .h-week { flex: 1; padding: 12px 4px; text-align: center; border-right: 1px solid rgba(255,255,255,0.1); font-size: 11px; }
+
+  .gantt-body { }
+  .gantt-row { display: flex; border-bottom: 1px solid #f0f0f0; min-height: 44px; align-items: center; }
+  .gantt-row:hover { background: #fafbff; }
+  .gantt-row.category-row { background: #f5f6fa; min-height: 32px; }
+
+  .task-label { min-width: 200px; padding: 8px 16px; font-size: 13px; border-right: 1px solid #eee; flex-shrink: 0; }
+  .task-label.category { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+  .task-label.sub { padding-left: 28px; }
+
+  .task-timeline { flex: 1; position: relative; height: 44px; display: flex; }
+  .week-cell { flex: 1; border-right: 1px solid #f0f0f0; position: relative; }
+  .week-cell.weekend { background: #fafafa; }
+
+  .bar-container { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; padding: 0 2px; pointer-events: none; }
+  .bar { height: 22px; border-radius: 4px; position: absolute; top: 50%; transform: translateY(-50%); display: flex; align-items: center; padding: 0 8px; font-size: 11px; color: #fff; font-weight: 600; white-space: nowrap; overflow: hidden; cursor: pointer; pointer-events: all; transition: filter 0.15s, transform 0.15s; }
+  .bar:hover { filter: brightness(1.1); transform: translateY(-50%) scaleY(1.1); }
+
+  .tooltip { position: fixed; background: #1a1a2e; color: #fff; border-radius: 6px; padding: 8px 12px; font-size: 12px; pointer-events: none; z-index: 999; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+  .tooltip.show { display: block; }
+  .tooltip strong { display: block; margin-bottom: 2px; }
+
+  .progress-bar { position: absolute; top: 0; left: 0; height: 100%; background: rgba(255,255,255,0.25); border-radius: 4px; }
+
+  /* 색상 팔레트 */
+  .c-plan    { background: #6c63ff; }
+  .c-env     { background: #48b2f0; }
+  .c-ai      { background: #f7931e; }
+  .c-backend { background: #27ae60; }
+  .c-frontend{ background: #e74c8c; }
+  .c-test    { background: #e67e22; }
+  .c-fix     { background: #e74c3c; }
+  .c-doc     { background: #95a5a6; }
+  .c-present { background: #8e44ad; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>관광지 추천 챗봇 프로젝트</h1>
+  <p class="subtitle">2025년 5월 ~ 6월 개발 일정</p>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot c-plan"></div>기획/설계</div>
+    <div class="legend-item"><div class="legend-dot c-env"></div>환경설정</div>
+    <div class="legend-item"><div class="legend-dot c-ai"></div>AI 서버</div>
+    <div class="legend-item"><div class="legend-dot c-backend"></div>백엔드</div>
+    <div class="legend-item"><div class="legend-dot c-frontend"></div>프론트엔드</div>
+    <div class="legend-item"><div class="legend-dot c-test"></div>통합 테스트</div>
+    <div class="legend-item"><div class="legend-dot c-fix"></div>버그 수정</div>
+    <div class="legend-item"><div class="legend-dot c-doc"></div>문서화</div>
+    <div class="legend-item"><div class="legend-dot c-present"></div>발표 준비</div>
+  </div>
+
+  <div class="gantt-wrapper" id="gantt"></div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const START_DATE = new Date('2025-05-01');
+const END_DATE   = new Date('2025-06-30');
+
+const TOTAL_DAYS = Math.ceil((END_DATE - START_DATE) / 86400000) + 1;
+
+// 주 단위 헤더 생성
+function getWeeks() {
+  const weeks = [];
+  let d = new Date(START_DATE);
+  while (d <= END_DATE) {
+    const mon = new Date(d);
+    const sun = new Date(d);
+    sun.setDate(sun.getDate() + 6);
+    weeks.push({
+      label: `${mon.getMonth()+1}/${mon.getDate()}`,
+      start: new Date(mon),
+      end: sun > END_DATE ? new Date(END_DATE) : new Date(sun)
+    });
+    d.setDate(d.getDate() + 7);
+  }
+  return weeks;
+}
+
+const weeks = getWeeks();
+const NUM_WEEKS = weeks.length;
+
+function dayOffset(date) {
+  return Math.max(0, Math.ceil((new Date(date) - START_DATE) / 86400000));
+}
+function daySpan(s, e) {
+  return Math.ceil((new Date(e) - new Date(s)) / 86400000) + 1;
+}
+
+// 작업 데이터
+const tasks = [
+  { category: '기획/설계', items: [
+    { name: '요구사항 분석',          color: 'c-plan',     start: '2025-05-01', end: '2025-05-04', progress: 100 },
+    { name: '시스템 아키텍처 설계',   color: 'c-plan',     start: '2025-05-03', end: '2025-05-06', progress: 100 },
+    { name: 'API 명세서 작성',        color: 'c-plan',     start: '2025-05-05', end: '2025-05-07', progress: 100 },
+  ]},
+  { category: '환경 설정', items: [
+    { name: 'DB/서버 환경 구성',      color: 'c-env',      start: '2025-05-06', end: '2025-05-09', progress: 100 },
+    { name: '개발 환경 통합',         color: 'c-env',      start: '2025-05-08', end: '2025-05-11', progress: 100 },
+  ]},
+  { category: 'AI 서버 (FastAPI)', items: [
+    { name: 'RAG 파이프라인 구축',    color: 'c-ai',       start: '2025-05-09', end: '2025-05-16', progress: 100 },
+    { name: 'ChromaDB 임베딩 연동',   color: 'c-ai',       start: '2025-05-13', end: '2025-05-19', progress: 100 },
+    { name: 'GPT 프롬프트 최적화',    color: 'c-ai',       start: '2025-05-17', end: '2025-05-23', progress: 100 },
+    { name: '문서 업로드 API',        color: 'c-ai',       start: '2025-05-20', end: '2025-05-24', progress: 100 },
+  ]},
+  { category: '백엔드 (Spring Boot)', items: [
+    { name: '회원 CRUD 구현',         color: 'c-backend',  start: '2025-05-10', end: '2025-05-17', progress: 100 },
+    { name: 'JWT 인증 구현',          color: 'c-backend',  start: '2025-05-16', end: '2025-05-21', progress: 100 },
+    { name: '챗봇 프록시 API',        color: 'c-backend',  start: '2025-05-19', end: '2025-05-23', progress: 100 },
+    { name: '채팅 이력 저장',         color: 'c-backend',  start: '2025-05-22', end: '2025-05-28', progress: 100 },
+    { name: 'Annotation 리팩토링',    color: 'c-backend',  start: '2025-05-28', end: '2025-06-03', progress: 80  },
+  ]},
+  { category: '프론트엔드 (React)', items: [
+    { name: '로그인/회원가입 UI',     color: 'c-frontend', start: '2025-05-12', end: '2025-05-19', progress: 100 },
+    { name: '채팅 UI 구현',           color: 'c-frontend', start: '2025-05-17', end: '2025-05-25', progress: 100 },
+    { name: 'Kakao Map 연동',         color: 'c-frontend', start: '2025-05-22', end: '2025-05-28', progress: 100 },
+    { name: '반응형 디자인',          color: 'c-frontend', start: '2025-05-27', end: '2025-06-02', progress: 80  },
+  ]},
+  { category: '테스트/마무리', items: [
+    { name: '통합 테스트',            color: 'c-test',     start: '2025-06-02', end: '2025-06-10', progress: 50  },
+    { name: '버그 수정',              color: 'c-fix',      start: '2025-06-09', end: '2025-06-16', progress: 20  },
+    { name: '문서화 (README 등)',      color: 'c-doc',      start: '2025-06-12', end: '2025-06-20', progress: 10  },
+    { name: '최종 발표 준비',         color: 'c-present',  start: '2025-06-20', end: '2025-06-30', progress: 0   },
+  ]},
+];
+
+const gantt = document.getElementById('gantt');
+const tooltip = document.getElementById('tooltip');
+
+// 헤더
+const header = document.createElement('div');
+header.style.cssText = 'display:flex; background:#1a1a2e; color:#fff; font-size:12px; font-weight:600; border-bottom:2px solid #0d0d1a;';
+
+const hTask = document.createElement('div');
+hTask.style.cssText = 'min-width:200px; padding:12px 16px; border-right:1px solid rgba(255,255,255,0.1); flex-shrink:0; font-size:13px;';
+hTask.textContent = '작업 항목';
+header.appendChild(hTask);
+
+const hWeeks = document.createElement('div');
+hWeeks.style.cssText = 'display:flex; flex:1;';
+weeks.forEach(w => {
+  const hw = document.createElement('div');
+  hw.style.cssText = 'flex:1; padding:12px 4px; text-align:center; border-right:1px solid rgba(255,255,255,0.1); font-size:11px;';
+  hw.textContent = w.label;
+  hWeeks.appendChild(hw);
+});
+header.appendChild(hWeeks);
+gantt.appendChild(header);
+
+// 바디
+const body = document.createElement('div');
+
+tasks.forEach(group => {
+  // 카테고리 행
+  const catRow = document.createElement('div');
+  catRow.style.cssText = 'display:flex; background:#f5f6fa; min-height:28px; align-items:center; border-bottom:1px solid #e8eaf0;';
+
+  const catLabel = document.createElement('div');
+  catLabel.style.cssText = 'min-width:200px; padding:4px 16px; font-size:11px; font-weight:700; color:#888; text-transform:uppercase; letter-spacing:0.5px; border-right:1px solid #eee; flex-shrink:0;';
+  catLabel.textContent = group.category;
+  catRow.appendChild(catLabel);
+
+  const catTimeline = document.createElement('div');
+  catTimeline.style.cssText = 'flex:1; display:flex;';
+  weeks.forEach(() => {
+    const cell = document.createElement('div');
+    cell.style.cssText = 'flex:1; border-right:1px solid #eee;';
+    catTimeline.appendChild(cell);
+  });
+  catRow.appendChild(catTimeline);
+  body.appendChild(catRow);
+
+  // 작업 행
+  group.items.forEach(task => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex; border-bottom:1px solid #f0f0f0; min-height:44px; align-items:center; transition:background 0.1s;';
+    row.onmouseenter = () => row.style.background = '#fafbff';
+    row.onmouseleave = () => row.style.background = '';
+
+    const label = document.createElement('div');
+    label.style.cssText = 'min-width:200px; padding:8px 16px 8px 28px; font-size:12px; border-right:1px solid #eee; flex-shrink:0; color:#444;';
+    label.textContent = task.name;
+    row.appendChild(label);
+
+    // 타임라인 (주 단위 셀)
+    const timeline = document.createElement('div');
+    timeline.style.cssText = 'flex:1; position:relative; height:44px; display:flex;';
+
+    weeks.forEach(w => {
+      const cell = document.createElement('div');
+      cell.style.cssText = 'flex:1; border-right:1px solid #f0f0f0;';
+      timeline.appendChild(cell);
+    });
+
+    // 바 위치 계산
+    const sOff = dayOffset(task.start);
+    const span = daySpan(task.start, task.end);
+    const leftPct  = (sOff / TOTAL_DAYS) * 100;
+    const widthPct = (span / TOTAL_DAYS) * 100;
+
+    const bar = document.createElement('div');
+    bar.className = `bar ${task.color}`;
+    bar.style.cssText = `left:calc(${leftPct}% + 2px); width:calc(${widthPct}% - 4px); height:24px; border-radius:4px; position:absolute; top:50%; transform:translateY(-50%); display:flex; align-items:center; padding:0 8px; font-size:11px; color:#fff; font-weight:600; white-space:nowrap; overflow:hidden; cursor:pointer; transition:filter 0.15s;`;
+
+    // 진행률 표시
+    const prog = document.createElement('div');
+    prog.style.cssText = `position:absolute; top:0; left:0; height:100%; width:${task.progress}%; background:rgba(255,255,255,0.2); border-radius:4px;`;
+    bar.appendChild(prog);
+
+    if (widthPct > 4) {
+      const txt = document.createElement('span');
+      txt.style.cssText = 'position:relative; z-index:1;';
+      txt.textContent = `${task.progress}%`;
+      bar.appendChild(txt);
+    }
+
+    bar.addEventListener('mouseenter', (e) => {
+      tooltip.innerHTML = `<strong>${task.name}</strong>${task.start} ~ ${task.end}<br>진행률: ${task.progress}%`;
+      tooltip.classList.add('show');
+    });
+    bar.addEventListener('mousemove', (e) => {
+      tooltip.style.left = (e.clientX + 12) + 'px';
+      tooltip.style.top  = (e.clientY - 10) + 'px';
+    });
+    bar.addEventListener('mouseleave', () => tooltip.classList.remove('show'));
+
+    timeline.appendChild(bar);
+    row.appendChild(timeline);
+    body.appendChild(row);
+  });
+});
+
+gantt.appendChild(body);
+
+// 오늘 날짜 표시선
+const today = new Date();
+if (today >= START_DATE && today <= END_DATE) {
+  const todayOff = dayOffset(today);
+  const leftPct = (todayOff / TOTAL_DAYS) * 100;
+
+  document.querySelectorAll('.gantt-wrapper [style*="position:relative"]').forEach(tl => {
+    if (!tl.style.cssText.includes('height:44px')) return;
+    const line = document.createElement('div');
+    line.style.cssText = `position:absolute; left:${leftPct}%; top:0; bottom:0; width:2px; background:rgba(231,76,60,0.6); z-index:10; pointer-events:none;`;
+    tl.appendChild(line);
+  });
+}
+</script>
+</body>
+</html>

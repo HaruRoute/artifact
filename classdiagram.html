@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>클래스 다이어그램 - 관광지 추천 챗봇</title>
+<style>
+  body { background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 32px 16px; font-family: 'Segoe UI', sans-serif; }
+  h1 { font-size: 20px; color: #1a1a2e; margin-bottom: 6px; }
+  p  { font-size: 13px; color: #888; margin-bottom: 24px; }
+  svg { background: #fff; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.10); }
+  .cls { cursor: default; }
+  .cls rect, .cls path { transition: filter 0.15s; }
+  .cls:hover { filter: drop-shadow(0 3px 8px rgba(0,0,0,0.18)); }
+</style>
+</head>
+<body>
+<h1>관광지 추천 챗봇 — 클래스(도메인 모델) 다이어그램</h1>  
+<p>UML Class Diagram · Spring Boot Entity 기반</p>
+<svg id="svg" width="1280" height="1010" xmlns="http://www.w3.org/2000/svg"></svg>
+
+<script>
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('svg');
+
+function el(tag, attrs, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+// 레이어 (배경 → 연결선 → 클래스 박스)
+const linkLayer = el('g', {}); svg.appendChild(linkLayer);
+const nodeLayer = el('g', {}); svg.appendChild(nodeLayer);
+
+// 상단이 둥근 사각형 path
+function topRoundRect(x, y, w, h, r) {
+  return `M${x+r},${y} h${w-2*r} a${r},${r} 0 0 1 ${r},${r} v${h-r} h${-w} v${-(h-r)} a${r},${r} 0 0 1 ${r},${-r} z`;
+}
+
+// ── 클래스 박스 그리기 ───────────────────────────────────────────
+const LH = 15;          // 줄 높이
+function drawClass(x, y, o) {
+  const w = o.w || 205;
+  const accent = o.accent || '#4338ca';
+  const headerH = o.stereo ? 38 : 28;
+  const attrH = 9 + o.attrs.length * LH;
+  const methH = o.methods.length ? 9 + o.methods.length * LH : 0;
+  const h = headerH + attrH + methH;
+
+  const g = el('g', { class: 'cls' });
+
+  // 외곽 박스
+  g.appendChild(el('rect', { x, y, width: w, height: h, rx: 9, fill: '#ffffff', stroke: accent, 'stroke-width': 1.6 }));
+  // 헤더(상단 둥근)
+  g.appendChild(el('path', { d: topRoundRect(x, y, w, headerH, 9), fill: accent }));
+
+  if (o.stereo) {
+    g.appendChild(el('text', { x: x + w/2, y: y + 15, 'text-anchor': 'middle', 'font-size': 10, 'font-style': 'italic', fill: '#e0e7ff' }, o.stereo));
+    g.appendChild(el('text', { x: x + w/2, y: y + 30, 'text-anchor': 'middle', 'font-size': 14, 'font-weight': 700, fill: '#ffffff' }, o.name));
+  } else {
+    g.appendChild(el('text', { x: x + w/2, y: y + 19, 'text-anchor': 'middle', 'font-size': 14, 'font-weight': 700, fill: '#ffffff' }, o.name));
+  }
+
+  // 속성 컴파트먼트
+  let ty = y + headerH + 15;
+  o.attrs.forEach(a => {
+    g.appendChild(el('text', { x: x + 11, y: ty, 'font-size': 11.5, fill: '#334155', 'font-family': 'Consolas, monospace' }, a));
+    ty += LH;
+  });
+
+  // 구분선 + 메서드 컴파트먼트
+  if (o.methods.length) {
+    const sepY = y + headerH + attrH;
+    g.appendChild(el('line', { x1: x, y1: sepY, x2: x + w, y2: sepY, stroke: accent, 'stroke-width': 1, opacity: 0.5 }));
+    let my = sepY + 15;
+    o.methods.forEach(m => {
+      g.appendChild(el('text', { x: x + 11, y: my, 'font-size': 11.5, fill: '#7c3aed', 'font-family': 'Consolas, monospace', 'font-style': 'italic' }, m));
+      my += LH;
+    });
+  }
+
+  nodeLayer.appendChild(g);
+  return { x, y, w, h, cx: x + w/2, cy: y + h/2 };
+}
+
+// ── 사각형 경계 교차점 ───────────────────────────────────────────
+function rectEdge(b, tx, ty) {
+  const dx = tx - b.cx, dy = ty - b.cy;
+  const hw = b.w/2, hh = b.h/2;
+  const sx = dx === 0 ? Infinity : hw/Math.abs(dx);
+  const sy = dy === 0 ? Infinity : hh/Math.abs(dy);
+  const s = Math.min(sx, sy);
+  return { x: b.cx + dx*s, y: b.cy + dy*s };
+}
+
+// ── 연관 관계 (다중도 포함) ───────────────────────────────────────
+function association(a, b, opts = {}) {
+  const { aMult = '', bMult = '', color = '#64748b', dashed = false, arrow = false, label = '' } = opts;
+  const e1 = rectEdge(a, b.cx, b.cy);
+  const e2 = rectEdge(b, a.cx, a.cy);
+  const g = el('g', {});
+
+  g.appendChild(el('line', {
+    x1: e1.x, y1: e1.y, x2: e2.x, y2: e2.y,
+    stroke: color, 'stroke-width': 1.4, 'stroke-dasharray': dashed ? '6,4' : 'none'
+  }));
+
+  if (arrow) {  // 빈 화살촉(의존 ..>)
+    const ang = Math.atan2(e2.y - e1.y, e2.x - e1.x);
+    const AL = 11, AW = 5;
+    const ax = e2.x - AL*Math.cos(ang), ay = e2.y - AL*Math.sin(ang);
+    g.appendChild(el('polyline', {
+      points: `${ax - AW*Math.sin(ang)},${ay + AW*Math.cos(ang)} ${e2.x},${e2.y} ${ax + AW*Math.sin(ang)},${ay - AW*Math.cos(ang)}`,
+      fill: 'none', stroke: color, 'stroke-width': 1.4
+    }));
+  }
+
+  // 다중도 라벨 (각 끝에서 안쪽으로 16px)
+  const place = (e, other, txt) => {
+    if (!txt) return;
+    const ang = Math.atan2(other.cy - e.y, other.cx - e.x);
+    const lx = e.x + 18*Math.cos(ang), ly = e.y + 18*Math.sin(ang) - 4;
+    g.appendChild(el('text', { x: lx, y: ly, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 700, fill: color }, txt));
+  };
+  place(e1, a, aMult);
+  place(e2, b, bMult);
+
+  if (label) {
+    const mx = (e1.x + e2.x)/2, my = (e1.y + e2.y)/2;
+    g.appendChild(el('rect', { x: mx - 34, y: my - 9, width: 68, height: 15, fill: '#fff', rx: 3, opacity: 0.9 }));
+    g.appendChild(el('text', { x: mx, y: my + 2, 'text-anchor': 'middle', 'font-size': 9.5, 'font-style': 'italic', fill: color }, label));
+  }
+
+  linkLayer.appendChild(g);
+}
+
+// 색상 프리셋
+const A_USER    = '#4338ca'; // 사용자 (허브)
+const A_CONTENT = '#0f766e'; // 게시판 콘텐츠
+const A_OWNED   = '#2563eb'; // 사용자 소유 데이터
+const A_MASTER  = '#b45309'; // 관광지 마스터
+
+// ══════════════════════════════════════════════════════════════════
+// 클래스 정의
+// ══════════════════════════════════════════════════════════════════
+
+// ── 중앙 허브 : User ──
+const User = drawClass(530, 430, {
+  name: 'User', accent: A_USER, stereo: '«Entity» 회원',
+  attrs: ['- id: String', '- pw: String', '- name: String', '- role: String = "USER"'],
+  methods: ['+ update(pw, name)']
+});
+
+// ── 좌측 : 게시판 콘텐츠 (authorId → User) ──
+const Post = drawClass(70, 70, {
+  name: 'Post', accent: A_CONTENT, stereo: '«Entity» 자유게시글',
+  attrs: ['- id: Long', '- title: String', '- content: String', '- authorId: String', '- authorName: String',
+          '- viewCount: int', '- category: String', '- routeData: String', '- routeName: String',
+          '- createdAt: LocalDateTime', '- updatedAt: LocalDateTime'],
+  methods: []
+});
+
+const Qna = drawClass(70, 420, {
+  name: 'Qna', accent: A_CONTENT, stereo: '«Entity» 질문게시글',
+  attrs: ['- id: Long', '- title: String', '- content: String', '- authorId: String', '- authorName: String',
+          '- viewCount: int', '- routeData: String', '- routeName: String',
+          '- createdAt: LocalDateTime', '- updatedAt: LocalDateTime'],
+  methods: []
+});
+
+const Notice = drawClass(70, 740, {
+  name: 'Notice', accent: A_CONTENT, stereo: '«Entity» 공지사항',
+  attrs: ['- id: Long', '- title: String', '- content: String', '- authorId: String', '- authorName: String',
+          '- isPinned: boolean', '- createdAt: LocalDateTime', '- updatedAt: LocalDateTime'],
+  methods: []
+});
+
+// ── 우측 : 사용자 소유 데이터 (userId → User) ──
+const TravelPlan = drawClass(1010, 70, {
+  name: 'TravelPlan', accent: A_OWNED, stereo: '«Entity» 여행계획',
+  attrs: ['- id: Long', '- userId: String', '- title: String', '- placesJson: String',
+          '- totalDistance: Double', '- transitFare: Integer', '- taxiFare: Integer',
+          '- createdAt: LocalDateTime'],
+  methods: []
+});
+
+const Favorite = drawClass(1010, 400, {
+  name: 'Favorite', accent: A_OWNED, stereo: '«Entity» 즐겨찾기',
+  attrs: ['- id: Long', '- userId: String', '- placeName: String', '- placeAddress: String',
+          '- lat: Double', '- lng: Double', '- memo: String', '- createdAt: LocalDateTime'],
+  methods: []
+});
+
+const ChatHistory = drawClass(1010, 720, {
+  name: 'ChatHistory', accent: A_OWNED, stereo: '«Entity» 채팅이력',
+  attrs: ['- id: Long', '- userId: String', '- message: String', '- response: String',
+          '- createdAt: LocalDateTime'],
+  methods: []
+});
+
+// ── 하단 중앙 : 관광지 마스터 데이터 (독립) ──
+const Spot = drawClass(515, 790, {
+  name: 'Spot', accent: A_MASTER, stereo: '«Entity» 관광지(KTO)',
+  attrs: ['- contentId: String', '- title: String', '- addr1: String', '- addr2: String',
+          '- firstImage: String', '- mapx: Double', '- mapy: Double',
+          '- areaCode: String', '- sigunguCode: String', '- contentTypeId: String'],
+  methods: []
+});
+
+// ══════════════════════════════════════════════════════════════════
+// 연관 관계
+// ══════════════════════════════════════════════════════════════════
+
+// User 1 ─── * (게시판 콘텐츠, authorId)
+association(User, Post,   { aMult: '1', bMult: '*', color: A_CONTENT, label: 'authorId' });
+association(User, Qna,    { aMult: '1', bMult: '*', color: A_CONTENT, label: 'authorId' });
+association(User, Notice, { aMult: '1', bMult: '*', color: A_CONTENT, label: 'authorId' });
+
+// User 1 ─── * (소유 데이터, userId)
+association(User, TravelPlan,  { aMult: '1', bMult: '*', color: A_OWNED, label: 'userId' });
+association(User, Favorite,    { aMult: '1', bMult: '*', color: A_OWNED, label: 'userId' });
+association(User, ChatHistory, { aMult: '1', bMult: '*', color: A_OWNED, label: 'userId' });
+
+// Spot ..> (스냅샷 복사 : 즐겨찾기/계획에 좌표·이름 저장)
+association(Favorite,   Spot, { color: A_MASTER, dashed: true, arrow: true, label: '«스냅샷»' });
+association(TravelPlan, Spot, { color: A_MASTER, dashed: true, arrow: true, label: '«스냅샷»' });
+
+// ══════════════════════════════════════════════════════════════════
+// 범례
+// ══════════════════════════════════════════════════════════════════
+const legend = el('g', {});
+legend.appendChild(el('rect', { x: 905, y: 940, width: 350, height: 56, rx: 8, fill: '#f8fafc', stroke: '#e2e8f0' }));
+const items = [
+  { y: 958, color: A_USER,    t: '회원 (허브 엔티티)' },
+  { y: 958, x2: true, color: A_CONTENT, t: '게시판 콘텐츠' },
+  { y: 977, color: A_OWNED,   t: '사용자 소유 데이터' },
+  { y: 977, x2: true, color: A_MASTER,  t: '관광지 마스터(KTO)' },
+];
+items.forEach(({ y, color, t, x2 }) => {
+  const x = x2 ? 1075 : 920;
+  legend.appendChild(el('rect', { x, y: y-9, width: 13, height: 11, rx: 2, fill: color }));
+  legend.appendChild(el('text', { x: x+19, y, 'font-size': 10.5, fill: '#475569' }, t));
+});
+// 관계 표기 설명
+legend.appendChild(el('text', { x: 920, y: 996, 'font-size': 9.5, 'font-style': 'italic', fill: '#94a3b8' }, '1 ─ *  연관(FK)    ┄▷ «스냅샷» 의존'));
+nodeLayer.appendChild(legend);
+</script>
+</body>
+</html>

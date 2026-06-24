@@ -1,0 +1,280 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Malgun Gothic','Segoe UI',sans-serif; color: #1f2937; font-size: 10.5pt; line-height: 1.6; margin: 0; }
+  h1,h2,h3 { color: #1e1b4b; font-weight: 700; }
+  .page { page-break-before: always; }
+  .no-break { page-break-inside: avoid; }
+
+  /* 표지 */
+  .cover { height: 252mm; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+  .cover .kicker { letter-spacing: 6px; font-size: 11pt; color: #6366f1; font-weight: 700; }
+  .cover h1 { font-size: 34pt; margin: 14px 0 6px; letter-spacing: -1px; }
+  .cover .sub { font-size: 14pt; color: #475569; margin-bottom: 40px; }
+  .cover .rule { width: 80px; height: 4px; background: #4338ca; border-radius: 2px; margin: 24px 0; }
+  .cover .meta { font-size: 11pt; color: #64748b; line-height: 2; }
+  .cover .badge { display:inline-block; margin:4px; padding:4px 12px; border:1px solid #c7d2fe; border-radius:999px; font-size:9pt; color:#4338ca; }
+
+  /* 목차 */
+  .toc h2 { border-bottom: 2px solid #4338ca; padding-bottom: 8px; }
+  .toc ol { list-style: none; padding: 0; counter-reset: t; }
+  .toc li { counter-increment: t; padding: 9px 0; border-bottom: 1px dashed #e2e8f0; font-size: 11.5pt; display:flex; }
+  .toc li::before { content: counter(t) ". "; font-weight: 700; color: #4338ca; margin-right: 10px; }
+
+  /* 섹션 */
+  .sec-head { border-left: 6px solid #4338ca; padding: 4px 0 4px 14px; margin: 0 0 18px; }
+  .sec-head .n { font-size: 10pt; color: #6366f1; font-weight: 700; letter-spacing: 2px; }
+  .sec-head h2 { font-size: 19pt; margin: 2px 0 0; }
+
+  h3 { font-size: 12.5pt; margin: 20px 0 8px; padding-left: 10px; border-left: 3px solid #94a3b8; }
+
+  table.tb { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9pt; page-break-inside: avoid; }
+  table.tb th { background: #1e1b4b; color: #fff; padding: 7px 9px; text-align: left; font-weight: 600; }
+  table.tb td { padding: 6px 9px; border-bottom: 1px solid #eef2f7; vertical-align: top; }
+  table.tb tr:nth-child(even) td { background: #f8fafc; }
+
+  .req-grid td:first-child { font-weight:600; white-space:nowrap; color:#334155; width: 130px; }
+
+  img.diagram { width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; margin: 10px 0; }
+  .cap { font-size: 9pt; color: #64748b; text-align: center; margin-top: -2px; margin-bottom: 6px; }
+
+  ul.wbs { list-style: none; padding-left: 0; font-size: 10pt; }
+  ul.wbs > li { margin: 6px 0; font-weight: 700; color: #1e1b4b; }
+  ul.wbs ul { list-style: none; padding-left: 18px; }
+  ul.wbs ul li { font-weight: 400; color: #334155; margin: 3px 0; }
+  ul.wbs ul li::before { content: "▪ "; color: #818cf8; }
+
+  /* API 표 */
+  table.api { width: 100%; border-collapse: collapse; font-size: 8pt; }
+  table.api th { background: #1e1b4b; color: #fff; padding: 6px 7px; text-align: left; }
+  table.api td { padding: 5px 7px; border-bottom: 1px solid #eef2f7; vertical-align: top; }
+  table.api td.dom { font-size: 8.5pt; }
+  table.api td.uri { font-family: Consolas, monospace; font-size: 7.6pt; color: #1e3a5f; }
+  table.api td.desc { color: #475569; font-size: 7.6pt; }
+  .mth { color: #fff; padding: 1px 6px; border-radius: 4px; font-size: 7pt; font-weight: 700; }
+  .auth { padding: 1px 6px; border-radius: 4px; font-size: 7pt; font-weight: 600; white-space: nowrap; }
+  .auth.pub { background: #dcfce7; color: #166534; }
+  .auth.req { background: #dbeafe; color: #1e40af; }
+  .auth.adm { background: #fee2e2; color: #991b1b; }
+
+  .shot { margin: 14px 0 4px; }
+  .shot img { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+  .shot .label { font-weight: 700; color: #1e1b4b; font-size: 11pt; margin-bottom: 4px; }
+  .shot .label .tag { font-size: 8pt; background:#eef2ff; color:#4338ca; padding:2px 8px; border-radius:999px; margin-left:8px; font-weight:600; }
+  .shot .note { font-size: 9pt; color: #64748b; margin: 2px 0 0; }
+
+  .tag-row { margin: 8px 0; }
+  .chip { display:inline-block; margin:3px; padding:3px 11px; background:#eef2ff; color:#3730a3; border-radius:6px; font-size:8.5pt; font-weight:600; }
+  .arch { background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px; font-size:9pt; line-height:1.7; }
+  .arch b { color:#1e1b4b; }
+</style></head><body>
+
+<!-- 표지 -->
+<div class="cover">
+  <div class="kicker">SOFTWARE DESIGN DOCUMENT</div>
+  <h1>관광지 추천 챗봇</h1>
+  <div class="sub">AI · RAG 기반 여행 플래너 — 설계 문서</div>
+  <div class="rule"></div>
+  <div>
+    <span class="badge">Vue 3</span><span class="badge">Spring Boot 4</span><span class="badge">FastAPI · RAG</span>
+    <span class="badge">MySQL 8</span><span class="badge">JWT</span><span class="badge">Kakao Map</span>
+  </div>
+  <div class="meta" style="margin-top:36px">
+    3-Tier 아키텍처 · 생성형 AI · 벡터 검색(ChromaDB)<br>
+    작성일 2026-06-24 · SSAFY 서울 15반 팀프로젝트
+  </div>
+</div>
+
+<!-- 목차 -->
+<div class="page toc">
+  <h2>목차 (Table of Contents)</h2>
+  <ol>
+    <li>요구사항 정의서</li>
+    <li>Use-Case 다이어그램</li>
+    <li>클래스 다이어그램</li>
+    <li>ER(Entity-Relationship) 다이어그램</li>
+    <li>WBS &amp; 간트 차트</li>
+    <li>화면 설계서</li>
+    <li>기타 참고 문서 (API 명세 · 기술 스택 · 아키텍처)</li>
+  </ol>
+</div>
+
+<!-- 1. 요구사항 정의서 -->
+<div class="page">
+  <div class="sec-head"><div class="n">SECTION 01</div><h2>요구사항 정의서</h2></div>
+
+  <h3>1.1 프로젝트 개요</h3>
+  <table class="tb req-grid">
+    <tr><td>프로젝트명</td><td>관광지 추천 챗봇 (AI 여행 플래너)</td></tr>
+    <tr><td>목표</td><td>생성형 AI와 RAG를 결합해 자연어 질의로 관광지를 추천하고, 지도·경로 최적화·대중교통 요금 산출까지 연계하는 여행 플래너 제공</td></tr>
+    <tr><td>핵심 가치</td><td>① 대화형 관광지 추천 ② 최적 동선·요금 계산 ③ 여행 계획 저장·공유 커뮤니티</td></tr>
+    <tr><td>대상 사용자</td><td>비회원(게스트) · 회원(User) · 관리자(Admin)</td></tr>
+  </table>
+
+  <h3>1.2 기능 요구사항</h3>
+  <table class="tb">
+    <tr><th style="width:120px">분류</th><th>요구사항</th></tr>
+    <tr><td>회원·인증</td><td>회원가입, JWT 로그인/로그아웃, 비밀번호 찾기, 내 정보 수정·탈퇴, 권한 분리(USER/ADMIN), 세션 만료 시 자동 로그아웃</td></tr>
+    <tr><td>AI 챗봇</td><td>RAG 기반 관광지 추천, 직전 대화 맥락 유지, 추천 명소 원클릭 경로 추가, 채팅 이력 저장·조회·삭제</td></tr>
+    <tr><td>지도·관광지</td><td>관광지 5만여 건 지도 표시, 시도/시군구/관광타입 필터, "이 위치에서 검색"(뷰포트 범위), 마커 클러스터링·뷰포트 컬링</td></tr>
+    <tr><td>경로·요금</td><td>TSP 기반 경로 최적화, 도보/자동차 동선, ODsay 대중교통·Kakao 택시 요금 실시간 산출</td></tr>
+    <tr><td>여행계획·보관함</td><td>경로 플래너 계획 저장/조회/수정/삭제(요금 포함), 즐겨찾기 추가/목록/삭제</td></tr>
+    <tr><td>커뮤니티</td><td>자유게시판·질문(QnA) 게시글 CRUD, 공지사항(관리자), 페이지네이션, 여행 계획 첨부·가져오기</td></tr>
+    <tr><td>관리자</td><td>공지 작성·수정·삭제, RAG 문서 업로드/삭제, 전체 게시글·QnA 삭제</td></tr>
+    <tr><td>온보딩</td><td>최초 로그인 시 스포트라이트 튜토리얼 투어</td></tr>
+  </table>
+
+  <h3>1.3 비기능 요구사항</h3>
+  <table class="tb">
+    <tr><th style="width:120px">분류</th><th>요구사항</th></tr>
+    <tr><td>성능</td><td>마커 렌더링 O(S+F) 해시 룩업, 관광지 동기화 벌크 업서트, TTL 캐시, 요금 병렬 계산(~300ms), 복합 인덱스 조회(~1ms)</td></tr>
+    <tr><td>보안</td><td>BCrypt 단방향 해시, JWT 인증 필터, CORS 허용 출처 제한, 본인/관리자 권한 검증</td></tr>
+    <tr><td>안정성</td><td>Flyway DB 마이그레이션, 전역 예외 처리(@RestControllerAdvice), 외부 API 타임아웃·폴백, 401 자동 로그아웃</td></tr>
+    <tr><td>품질·테스트</td><td>단위 테스트(Mockito 80) · 컨트롤러 슬라이스(@WebMvcTest 93) · E2E(Playwright 39)</td></tr>
+    <tr><td>호환성·UX</td><td>PC/모바일 반응형, 글래스모피즘 UI, 사이드바 레이아웃</td></tr>
+    <tr><td>유지보수</td><td>3-Tier 분리, 도메인형 패키지 구조, 환경별 설정 분리(application-secret)</td></tr>
+  </table>
+</div>
+
+<!-- 2. Use-Case -->
+<div class="page">
+  <div class="sec-head"><div class="n">SECTION 02</div><h2>Use-Case 다이어그램</h2></div>
+  <p>비회원·회원·관리자 3개 액터의 상속(일반화) 관계와 시스템 유스케이스, 외부 시스템(AI 서버·관광공사·Kakao·ODsay) 연동을 표현한다.</p>
+  <img class="diagram" src="images/diagram_usecase.png">
+  <p class="cap">[그림 2-1] 관광지 추천 챗봇 Use-Case Diagram</p>
+  <table class="tb">
+    <tr><th style="width:110px">액터</th><th>주요 유스케이스</th></tr>
+    <tr><td>비회원</td><td>회원가입, 로그인, 비밀번호 찾기, 관광지 검색·지도 조회, 게시글·공지 조회</td></tr>
+    <tr><td>회원<br>(비회원 상속)</td><td>AI 챗봇 질문, 채팅 이력, 경로 최적화, 여행 계획·즐겨찾기 관리, 게시글·QnA 작성, 내 정보 수정</td></tr>
+    <tr><td>관리자<br>(회원 상속)</td><td>공지사항 관리, RAG 문서 업로드/삭제, 전체 게시글·QnA 삭제</td></tr>
+  </table>
+</div>
+
+<!-- 3. 클래스 -->
+<div class="page">
+  <div class="sec-head"><div class="n">SECTION 03</div><h2>클래스 다이어그램</h2></div>
+  <p>Spring Boot 도메인 엔티티 기준 클래스 모델. <b>User</b>를 허브로 게시판 콘텐츠(Post·Qna·Notice)와 사용자 소유 데이터(TravelPlan·Favorite·ChatHistory)가 1:N 연관되며, <b>Spot</b>은 KTO 동기화 독립 마스터로 즐겨찾기·계획에 스냅샷 복사된다.</p>
+  <img class="diagram" src="images/diagram_class.png">
+  <p class="cap">[그림 3-1] 도메인 클래스 다이어그램 (UML)</p>
+</div>
+
+<!-- 4. ER -->
+<div class="page">
+  <div class="sec-head"><div class="n">SECTION 04</div><h2>ER 다이어그램</h2></div>
+  <p>MySQL 8 스키마(Flyway V1~V8) 기준 ER 모델. Crow's Foot 표기법으로 <b>users</b>와 각 테이블의 1:N 관계를 표현한다. (FK는 인덱스 기반 논리적 참조)</p>
+  <img class="diagram" src="images/diagram_er.png">
+  <p class="cap">[그림 4-1] 데이터베이스 ER Diagram (Crow's Foot)</p>
+  <table class="tb">
+    <tr><th style="width:130px">테이블</th><th>설명</th><th style="width:90px">PK</th></tr>
+    <tr><td>users</td><td>회원 계정·권한(USER/ADMIN)</td><td>user_id</td></tr>
+    <tr><td>posts / qnas</td><td>자유게시글 / 질문게시글 (author_id → users)</td><td>id</td></tr>
+    <tr><td>notices</td><td>공지사항, 상단 고정(is_pinned)</td><td>id</td></tr>
+    <tr><td>travel_plans</td><td>여행 계획 + 예상 요금(transit/taxi_fare)</td><td>id</td></tr>
+    <tr><td>favorites</td><td>즐겨찾기 장소(좌표·메모)</td><td>id</td></tr>
+    <tr><td>chat_history</td><td>AI 챗봇 대화 이력</td><td>id</td></tr>
+    <tr><td>spots</td><td>관광지 마스터(KTO 5만여 건, 독립)</td><td>content_id</td></tr>
+  </table>
+</div>
+
+<!-- 5. WBS & 간트 -->
+<div class="page">
+  <div class="sec-head"><div class="n">SECTION 05</div><h2>WBS &amp; 간트 차트</h2></div>
+  <h3>5.1 WBS (Work Breakdown Structure)</h3>
+  <ul class="wbs">
+    <li>1. 기획 및 설계
+      <ul><li>요구사항 분석·기능 정의</li><li>시스템 아키텍처 설계(3-tier)</li><li>DB 스키마 설계</li><li>API 명세서 작성</li></ul></li>
+    <li>2. 개발 환경 설정
+      <ul><li>MySQL·서버 환경 구성</li><li>Flyway 마이그레이션 셋업</li><li>Node/Java 개발 환경</li></ul></li>
+    <li>3. AI 서버 (FastAPI/RAG)
+      <ul><li>RAG 파이프라인·문서 청킹</li><li>SentenceTransformer 임베딩 + ChromaDB</li><li>/integrated-chat 엔드포인트</li><li>Claude/GPT 프롬프트 최적화</li></ul></li>
+    <li>4. 백엔드 (Spring Boot)
+      <ul><li>회원 CRUD·BCrypt·JWT 필터</li><li>챗봇 프록시·채팅 이력</li><li>관광지 DB 이관·동기화 스케줄러</li><li>게시판/공지/QnA·경로/요금·여행계획/즐겨찾기 API</li><li>Spring Batch 채팅 정리</li></ul></li>
+    <li>5. 프론트엔드 (Vue 3)
+      <ul><li>로그인/회원가입·챗봇 UI</li><li>Kakao Map 연동·렌더링 최적화</li><li>경로 플래너·게시판·Vue Router</li><li>반응형 디자인·UI 리디자인</li></ul></li>
+    <li>6. 성능·안정성 고도화
+      <ul><li>렌더링 최적화·벌크 업서트·캐싱</li><li>CORS 중앙화·전역 예외 강화</li></ul></li>
+    <li>7. 테스트 및 마무리
+      <ul><li>단위·통합·E2E 테스트 자동화</li><li>버그 수정·문서화·발표 준비</li></ul></li>
+  </ul>
+  <h3>5.2 간트 차트</h3>
+  <img class="diagram" src="images/diagram_gantt.png">
+  <p class="cap">[그림 5-1] 프로젝트 일정 간트 차트</p>
+</div>
+
+<!-- 6. 화면 설계서 -->
+<div class="page">
+  <div class="sec-head"><div class="n">SECTION 06</div><h2>화면 설계서</h2></div>
+  <p>실제 구현 화면 기준 주요 페이지 설계. (해상도 1280×880, 데스크톱 기준)</p>
+
+  <div class="shot no-break">
+    <div class="label">홈 / 지도 + 경로 플래너 <span class="tag">/</span></div>
+    <img src="images/screen_home.png">
+    <p class="note">좌측 경로 플래너(TODAY'S ROUTE) · 중앙 Kakao Map 관광지 마커 · 상단 시도/시군구/타입 필터 · 우하단 AI 챗봇 플로팅 버튼</p>
+  </div>
+  <div class="shot no-break">
+    <div class="label">AI 챗봇 <span class="tag">/ (위젯)</span></div>
+    <img src="images/screen_chatbot.png">
+    <p class="note">RAG 기반 대화형 추천 패널 · 빠른 질문 · 추천 명소 원클릭 경로 추가</p>
+  </div>
+</div>
+<div class="page">
+  <div class="shot no-break">
+    <div class="label">자유게시판 <span class="tag">/board</span></div>
+    <img src="images/screen_board.png">
+    <p class="note">전체/공지/자유/질문 필터 · 고정 공지 · 소셜 카드 피드 · 인기글</p>
+  </div>
+  <div class="shot no-break">
+    <div class="label">내 보관함 <span class="tag">/library</span></div>
+    <img src="images/screen_library.png">
+    <p class="note">저장된 여행 계획·즐겨찾기 관리 (요금·거리 표시)</p>
+  </div>
+</div>
+<div class="page">
+  <div class="shot no-break">
+    <div class="label">게시글 상세 <span class="tag">/board/post/:id</span></div>
+    <img src="images/screen_post.png">
+    <p class="note">본문 · 첨부 경로 미리보기 · "내 루트로 가져오기" · 조회수</p>
+  </div>
+  <div class="shot no-break">
+    <div class="label">공지사항 <span class="tag">/notices</span></div>
+    <img src="images/screen_notice.png">
+    <p class="note">관리자 공지 목록 · 상단 고정 표시</p>
+  </div>
+</div>
+
+<!-- 7. 기타 참고 문서 -->
+<div class="page">
+  <div class="sec-head"><div class="n">SECTION 07</div><h2>기타 참고 문서</h2></div>
+
+  <h3>7.1 시스템 아키텍처 (3-Tier)</h3>
+  <div class="arch">
+    <b>① Presentation</b> — Vue 3 + TypeScript + Vite (5173) · Kakao Map · Axios<br>
+    &nbsp;&nbsp;&nbsp;&darr; HTTP (JWT)<br>
+    <b>② Application</b> — Spring Boot 4 + MyBatis (8080) · 회원/인증·챗봇 프록시·게시판·경로/요금 · MySQL 8<br>
+    &nbsp;&nbsp;&nbsp;&darr; HTTP (RestTemplate)<br>
+    <b>③ AI / RAG</b> — FastAPI (8000) · SentenceTransformer 임베딩 → ChromaDB 검색 → Claude/GPT 응답 생성
+  </div>
+
+  <h3>7.2 기술 스택</h3>
+  <div class="tag-row">
+    <b style="font-size:9.5pt;color:#475569">Frontend</b><br>
+    <span class="chip">Vue 3</span><span class="chip">Vue Router</span><span class="chip">TypeScript</span><span class="chip">Vite</span><span class="chip">Bootstrap 5</span><span class="chip">Axios</span><span class="chip">Kakao Map API</span><span class="chip">Playwright</span>
+  </div>
+  <div class="tag-row">
+    <b style="font-size:9.5pt;color:#475569">Backend</b><br>
+    <span class="chip">Java 17</span><span class="chip">Spring Boot 4.0</span><span class="chip">Spring Batch</span><span class="chip">MyBatis</span><span class="chip">MySQL 8</span><span class="chip">Flyway</span><span class="chip">JJWT</span><span class="chip">BCrypt</span><span class="chip">JUnit·Mockito</span>
+  </div>
+  <div class="tag-row">
+    <b style="font-size:9.5pt;color:#475569">AI Server</b><br>
+    <span class="chip">Python</span><span class="chip">FastAPI</span><span class="chip">Anthropic Claude</span><span class="chip">sentence-transformers</span><span class="chip">ChromaDB</span><span class="chip">PyPDF</span>
+  </div>
+
+  <h3>7.3 API 명세서</h3>
+  <p style="font-size:9pt;color:#64748b">총 39개 엔드포인트 · Base URL <code>http://localhost:8080</code></p>
+  <table class="api">
+    <thead><tr><th style="width:60px">도메인</th><th style="width:90px">기능</th><th style="width:48px">Method</th><th style="width:150px">엔드포인트</th><th>설명</th><th style="width:60px">인증</th></tr></thead>
+    <tbody><tr><td class="dom" style="border-left:3px solid #4338ca"><b>회원</b></td><td>회원가입</td><td><span class="mth" style="background:#2563eb">POST</span></td><td class="uri">/api/users</td><td class="desc">새로운 회원을 등록합니다.</td><td><span class="auth req">불필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #4338ca"></td><td>로그인</td><td><span class="mth" style="background:#2563eb">POST</span></td><td class="uri">/api/users/login</td><td class="desc">회원 로그인 후 JWT 토큰을 반환합니다.</td><td><span class="auth req">불필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #4338ca"></td><td>로그아웃</td><td><span class="mth" style="background:#2563eb">POST</span></td><td class="uri">/api/users/logout</td><td class="desc">로그아웃을 처리합니다.</td><td><span class="auth req">불필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #4338ca"></td><td>비밀번호 찾기</td><td><span class="mth" style="background:#2563eb">POST</span></td><td class="uri">/api/users/find-pw</td><td class="desc">아이디와 이름으로 비밀번호를 반환합니다.</td><td><span class="auth req">불필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #4338ca"></td><td>내 정보 조회</td><td><span class="mth" style="background:#0f766e">GET</span></td><td class="uri">/api/users/{userId}</td><td class="desc">특정 회원의 정보를 조회합니다.</td><td><span class="auth req">필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #4338ca"></td><td>정보 수정</td><td><span class="mth" style="background:#b45309">PUT</span></td><td class="uri">/api/users/{userId}</td><td class="desc">회원의 이름 또는 비밀번호를 수정합니다.</td><td><span class="auth req">필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #4338ca"></td><td>회원 탈퇴</td><td><span class="mth" style="background:#dc2626">DELETE</span></td><td class="uri">/api/users/{userId}</td><td class="desc">회원을 탈퇴 처리합니다.</td><td><span class="auth req">필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #b45309"><b>관광지</b></td><td>관광지 검색</td><td><span class="mth" style="background:#0f766e">GET</span></td><td class="uri">/api/spots</td><td class="desc">지역·타입·좌표 범위 조건으로 관광지 목록을 조회합니다.</td><td><span class="auth req">불필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #0f766e"><b>챗봇</b></td><td>질문 전송</td><td><span class="mth" style="background:#2563eb">POST</span></td><td class="uri">/api/chatbot/ask</td><td class="desc">AI 서버(RAG)에 질문과 직전 대화 맥락을 전송하고 응답을 저장합니다.</td><td><span class="auth req">필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #0f766e"><b>채팅이력</b></td><td>이력 조회</td><td><span class="mth" style="background:#0f766e">GET</span></td><td class="uri">/api/chat/history</td><td class="desc">로그인한 사용자의 채팅 이력을 조회합니다.</td><td><span class="auth req">필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #0f766e"></td><td>이력 삭제</td><td><span class="mth" style="background:#dc2626">DELETE</span></td><td class="uri">/api/chat/history</td><td class="desc">로그인한 사용자의 채팅 이력 전체를 삭제합니다.</td><td><span class="auth req">필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #2563eb"><b>경로최적화</b></td><td>경로 최적화</td><td><span class="mth" style="background:#2563eb">POST</span></td><td class="uri">/api/route/optimize</td><td class="desc">장소 목록을 TSP 알고리즘(10개 이하 정확, 11개 이상 휴리스틱)으로 최적 순서로 정렬합니다.</td><td><span class="auth req">불필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #2563eb"><b>경로요금</b></td><td>구간 요금 계산</td><td><span class="mth" style="background:#2563eb">POST</span></td><td class="uri">/api/route/transit-fares</td><td class="desc">경유지 좌표 목록의 구간별 대중교통/택시 요금을 ODsay·Kakao Mobility API로 병렬 계산합니다. (10초 타임아웃 시 0원 fallback)</td><td><span class="auth req">불필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #2563eb"><b>여행계획</b></td><td>계획 저장</td><td><span class="mth" style="background:#2563eb">POST</span></td><td class="uri">/api/plans</td><td class="desc">현재 경로 플래너의 계획(예상 요금 포함)을 저장합니다.</td><td><span class="auth req">필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #2563eb"></td><td>계획 목록 조회</td><td><span class="mth" style="background:#0f766e">GET</span></td><td class="uri">/api/plans</td><td class="desc">로그인한 사용자의 여행 계획 목록을 조회합니다.</td><td><span class="auth req">필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #2563eb"></td><td>계획 단건 조회</td><td><span class="mth" style="background:#0f766e">GET</span></td><td class="uri">/api/plans/{id}</td><td class="desc">여행 계획 단건을 조회합니다.</td><td><span class="auth req">필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #2563eb"></td><td>계획 수정</td><td><span class="mth" style="background:#b45309">PUT</span></td><td class="uri">/api/plans/{id}</td><td class="desc">여행 계획을 수정합니다. (본인)</td><td><span class="auth req">필요(본인)</span></td></tr><tr><td class="dom" style="border-left:3px solid #2563eb"></td><td>계획 삭제</td><td><span class="mth" style="background:#dc2626">DELETE</span></td><td class="uri">/api/plans/{id}</td><td class="desc">여행 계획을 삭제합니다.</td><td><span class="auth req">필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #2563eb"><b>즐겨찾기</b></td><td>즐겨찾기 추가</td><td><span class="mth" style="background:#2563eb">POST</span></td><td class="uri">/api/favorites</td><td class="desc">장소를 즐겨찾기에 추가합니다.</td><td><span class="auth req">필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #2563eb"></td><td>즐겨찾기 목록</td><td><span class="mth" style="background:#0f766e">GET</span></td><td class="uri">/api/favorites</td><td class="desc">로그인한 사용자의 즐겨찾기 목록을 조회합니다.</td><td><span class="auth req">필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #2563eb"></td><td>즐겨찾기 삭제</td><td><span class="mth" style="background:#dc2626">DELETE</span></td><td class="uri">/api/favorites/{id}</td><td class="desc">즐겨찾기를 삭제합니다.</td><td><span class="auth req">필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #0f766e"><b>공지사항</b></td><td>공지사항 전체 조회</td><td><span class="mth" style="background:#0f766e">GET</span></td><td class="uri">/api/notices</td><td class="desc">공지사항 전체 목록을 조회합니다. (최신순)</td><td><span class="auth req">불필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #0f766e"></td><td>고정 공지사항 조회</td><td><span class="mth" style="background:#0f766e">GET</span></td><td class="uri">/api/notices/pinned</td><td class="desc">자유게시판 상단에 표시할 고정 공지사항 목록을 조회합니다.</td><td><span class="auth req">불필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #0f766e"></td><td>공지사항 작성</td><td><span class="mth" style="background:#2563eb">POST</span></td><td class="uri">/api/notices</td><td class="desc">공지사항을 작성합니다. (관리자 전용)</td><td><span class="auth adm">필요(관리자)</span></td></tr><tr><td class="dom" style="border-left:3px solid #0f766e"></td><td>공지사항 수정</td><td><span class="mth" style="background:#b45309">PUT</span></td><td class="uri">/api/notices/{id}</td><td class="desc">공지사항을 수정합니다. (관리자 전용)</td><td><span class="auth adm">필요(관리자)</span></td></tr><tr><td class="dom" style="border-left:3px solid #0f766e"></td><td>공지사항 삭제</td><td><span class="mth" style="background:#dc2626">DELETE</span></td><td class="uri">/api/notices/{id}</td><td class="desc">공지사항을 삭제합니다. (관리자 전용)</td><td><span class="auth adm">필요(관리자)</span></td></tr><tr><td class="dom" style="border-left:3px solid #0f766e"><b>자유게시판</b></td><td>게시글 목록 조회</td><td><span class="mth" style="background:#0f766e">GET</span></td><td class="uri">/api/posts</td><td class="desc">게시글 목록을 페이지네이션으로 조회합니다.</td><td><span class="auth req">불필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #0f766e"></td><td>게시글 상세 조회</td><td><span class="mth" style="background:#0f766e">GET</span></td><td class="uri">/api/posts/{id}</td><td class="desc">게시글 상세를 조회합니다. 조회수가 1 증가합니다.</td><td><span class="auth req">불필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #0f766e"></td><td>게시글 작성</td><td><span class="mth" style="background:#2563eb">POST</span></td><td class="uri">/api/posts</td><td class="desc">게시글을 작성합니다. 저장된 여행 계획을 첨부할 수 있습니다.</td><td><span class="auth req">필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #0f766e"></td><td>게시글 수정</td><td><span class="mth" style="background:#b45309">PUT</span></td><td class="uri">/api/posts/{id}</td><td class="desc">게시글을 수정합니다. (본인 또는 관리자)</td><td><span class="auth adm">필요(본인/관리자)</span></td></tr><tr><td class="dom" style="border-left:3px solid #0f766e"></td><td>게시글 삭제</td><td><span class="mth" style="background:#dc2626">DELETE</span></td><td class="uri">/api/posts/{id}</td><td class="desc">게시글을 삭제합니다. (본인 또는 관리자)</td><td><span class="auth adm">필요(본인/관리자)</span></td></tr><tr><td class="dom" style="border-left:3px solid #0f766e"><b>질문게시판</b></td><td>질문 목록 조회</td><td><span class="mth" style="background:#0f766e">GET</span></td><td class="uri">/api/qnas</td><td class="desc">질문 게시글 목록을 페이지네이션으로 조회합니다.</td><td><span class="auth req">필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #0f766e"></td><td>질문 상세 조회</td><td><span class="mth" style="background:#0f766e">GET</span></td><td class="uri">/api/qnas/{id}</td><td class="desc">질문 게시글 상세를 조회합니다. 조회수가 1 증가합니다.</td><td><span class="auth req">필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #0f766e"></td><td>질문 작성</td><td><span class="mth" style="background:#2563eb">POST</span></td><td class="uri">/api/qnas</td><td class="desc">앱 사용 관련 질문/문의 게시글을 작성합니다.</td><td><span class="auth req">필요</span></td></tr><tr><td class="dom" style="border-left:3px solid #0f766e"></td><td>질문 수정</td><td><span class="mth" style="background:#b45309">PUT</span></td><td class="uri">/api/qnas/{id}</td><td class="desc">질문 게시글을 수정합니다. (본인 또는 관리자)</td><td><span class="auth adm">필요(본인/관리자)</span></td></tr><tr><td class="dom" style="border-left:3px solid #0f766e"></td><td>질문 삭제</td><td><span class="mth" style="background:#dc2626">DELETE</span></td><td class="uri">/api/qnas/{id}</td><td class="desc">질문 게시글을 삭제합니다. (본인 또는 관리자)</td><td><span class="auth adm">필요(본인/관리자)</span></td></tr><tr><td class="dom" style="border-left:3px solid #7c3aed"><b>문서관리</b></td><td>문서 목록 조회</td><td><span class="mth" style="background:#0f766e">GET</span></td><td class="uri">/api/documents</td><td class="desc">RAG에 등록된 문서 목록을 조회합니다. (관리자 전용)</td><td><span class="auth adm">필요(관리자)</span></td></tr><tr><td class="dom" style="border-left:3px solid #7c3aed"></td><td>문서 업로드</td><td><span class="mth" style="background:#2563eb">POST</span></td><td class="uri">/api/documents/upload</td><td class="desc">문서(txt·md·pdf)를 업로드하여 RAG 벡터 DB에 등록합니다. (관리자 전용)</td><td><span class="auth adm">필요(관리자)</span></td></tr><tr><td class="dom" style="border-left:3px solid #7c3aed"></td><td>문서 삭제</td><td><span class="mth" style="background:#dc2626">DELETE</span></td><td class="uri">/api/documents/{filename}</td><td class="desc">RAG 벡터 DB에서 문서를 삭제합니다. (관리자 전용)</td><td><span class="auth adm">필요(관리자)</span></td></tr></tbody>
+  </table>
+</div>
+
+</body></html>

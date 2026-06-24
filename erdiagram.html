@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>ER 다이어그램 - 관광지 추천 챗봇</title>
+<style>
+  body { background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 32px 16px; font-family: 'Segoe UI', sans-serif; }
+  h1 { font-size: 20px; color: #1a1a2e; margin-bottom: 6px; }
+  p  { font-size: 13px; color: #888; margin-bottom: 24px; }
+  svg { background: #fff; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.10); }
+  .tbl { cursor: default; }
+  .tbl:hover { filter: drop-shadow(0 3px 8px rgba(0,0,0,0.18)); }
+</style>
+</head>
+<body>
+<h1>관광지 추천 챗봇 — ER 다이어그램</h1>
+<p>MySQL 8 · Crow's Foot Notation · Flyway 스키마(V1~V8) 기반</p>
+<svg id="svg" width="1300" height="1020" xmlns="http://www.w3.org/2000/svg"></svg>
+
+<script>
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('svg');
+
+function el(tag, attrs, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+const linkLayer = el('g', {}); svg.appendChild(linkLayer);
+const nodeLayer = el('g', {}); svg.appendChild(nodeLayer);
+
+function topRoundRect(x, y, w, h, r) {
+  return `M${x+r},${y} h${w-2*r} a${r},${r} 0 0 1 ${r},${r} v${h-r} h${-w} v${-(h-r)} a${r},${r} 0 0 1 ${r},${-r} z`;
+}
+
+// ── 테이블 박스 ─────────────────────────────────────────────────
+const ROW = 21, HEAD = 32;
+function drawTable(x, y, o) {
+  const w = o.w || 252;
+  const accent = o.accent || '#4338ca';
+  const h = HEAD + o.cols.length * ROW + 6;
+
+  const g = el('g', { class: 'tbl' });
+  g.appendChild(el('rect', { x, y, width: w, height: h, rx: 8, fill: '#fff', stroke: accent, 'stroke-width': 1.6 }));
+  g.appendChild(el('path', { d: topRoundRect(x, y, w, HEAD, 8), fill: accent }));
+  g.appendChild(el('text', { x: x + w/2, y: y + 21, 'text-anchor': 'middle', 'font-size': 14, 'font-weight': 700, fill: '#fff' }, o.name));
+
+  o.cols.forEach((c, i) => {
+    const [cname, ctype, key] = c;
+    const ry = y + HEAD + i * ROW;
+    if (i % 2 === 1) g.appendChild(el('rect', { x: x+1, y: ry, width: w-2, height: ROW, fill: '#f8fafc' }));
+
+    if (key) {
+      const isPK = key.includes('PK');
+      g.appendChild(el('rect', { x: x + 8, y: ry + 4, width: 24, height: 13, rx: 3, fill: isPK ? '#d97706' : '#2563eb' }));
+      g.appendChild(el('text', { x: x + 20, y: ry + 14, 'text-anchor': 'middle', 'font-size': 8.5, 'font-weight': 700, fill: '#fff' }, key));
+    }
+    g.appendChild(el('text', {
+      x: x + 40, y: ry + 14, 'font-size': 11.5,
+      'font-weight': key && key.includes('PK') ? 700 : 500,
+      'text-decoration': key && key.includes('PK') ? 'underline' : 'none',
+      fill: '#1e293b', 'font-family': 'Consolas, monospace'
+    }, cname));
+    g.appendChild(el('text', { x: x + w - 10, y: ry + 14, 'text-anchor': 'end', 'font-size': 10, fill: '#94a3b8', 'font-family': 'Consolas, monospace' }, ctype));
+  });
+
+  nodeLayer.appendChild(g);
+  return { x, y, w, h, cx: x + w/2, cy: y + h/2 };
+}
+
+function rectEdge(b, tx, ty) {
+  const dx = tx - b.cx, dy = ty - b.cy;
+  const hw = b.w/2, hh = b.h/2;
+  const sx = dx === 0 ? Infinity : hw/Math.abs(dx);
+  const sy = dy === 0 ? Infinity : hh/Math.abs(dy);
+  const s = Math.min(sx, sy);
+  return { x: b.cx + dx*s, y: b.cy + dy*s };
+}
+
+// ── 관계선 : 부모(1) ──< 자식(N), Crow's Foot ────────────────────
+function relation(parent, child, label, color) {
+  color = color || '#64748b';
+  const ec = rectEdge(child, parent.cx, parent.cy);   // 자식 측
+  const ep = rectEdge(parent, child.cx, child.cy);    // 부모 측
+  const g = el('g', {});
+
+  g.appendChild(el('line', { x1: ep.x, y1: ep.y, x2: ec.x, y2: ec.y, stroke: color, 'stroke-width': 1.5 }));
+
+  const ang = Math.atan2(ep.y - ec.y, ep.x - ec.x);   // 자식 → 부모 방향
+  const dx = Math.cos(ang), dy = Math.sin(ang);
+  const px = -dy, py = dx;
+
+  // 자식 측 : 까마귀발 (다(多), N)
+  const bx = ec.x + dx*16, by = ec.y + dy*16;
+  [[ec.x + px*8, ec.y + py*8], [ec.x - px*8, ec.y - py*8], [ec.x, ec.y]].forEach(([tx, ty]) => {
+    g.appendChild(el('line', { x1: bx, y1: by, x2: tx, y2: ty, stroke: color, 'stroke-width': 1.5 }));
+  });
+
+  // 부모 측 : 단일 막대 (1)
+  const obx = ep.x - dx*12, oby = ep.y - dy*12;
+  g.appendChild(el('line', { x1: obx + px*8, y1: oby + py*8, x2: obx - px*8, y2: oby - py*8, stroke: color, 'stroke-width': 1.5 }));
+
+  // 관계 라벨 (FK 컬럼)
+  if (label) {
+    const mx = (ep.x + ec.x)/2, my = (ep.y + ec.y)/2;
+    g.appendChild(el('rect', { x: mx - 36, y: my - 9, width: 72, height: 15, rx: 3, fill: '#fff', opacity: 0.92 }));
+    g.appendChild(el('text', { x: mx, y: my + 2, 'text-anchor': 'middle', 'font-size': 9.5, 'font-style': 'italic', fill: color, 'font-family': 'Consolas, monospace' }, label));
+  }
+
+  linkLayer.appendChild(g);
+}
+
+// 색상
+const C_USER = '#4338ca', C_CONTENT = '#0f766e', C_OWNED = '#2563eb', C_MASTER = '#b45309';
+
+// ══════════════════════════════════════════════════════════════════
+// 테이블 정의
+// ══════════════════════════════════════════════════════════════════
+const users = drawTable(540, 405, {
+  name: 'users', accent: C_USER,
+  cols: [
+    ['user_id', 'VARCHAR(50)', 'PK'],
+    ['pw', 'VARCHAR(255)', ''],
+    ['name', 'VARCHAR(50)', ''],
+    ['role', 'VARCHAR(20)', ''],
+  ]
+});
+
+// ── 좌측 : 게시판 콘텐츠 (author_id → users) ──
+const posts = drawTable(60, 60, {
+  name: 'posts', accent: C_CONTENT,
+  cols: [
+    ['id', 'BIGINT', 'PK'],
+    ['title', 'VARCHAR(255)', ''],
+    ['content', 'TEXT', ''],
+    ['author_id', 'VARCHAR(50)', 'FK'],
+    ['author_name', 'VARCHAR(50)', ''],
+    ['view_count', 'INT', ''],
+    ['category', 'VARCHAR(20)', ''],
+    ['route_data', 'TEXT', ''],
+    ['route_name', 'VARCHAR(255)', ''],
+    ['created_at', 'DATETIME', ''],
+    ['updated_at', 'DATETIME', ''],
+  ]
+});
+
+const qnas = drawTable(60, 425, {
+  name: 'qnas', accent: C_CONTENT,
+  cols: [
+    ['id', 'BIGINT', 'PK'],
+    ['title', 'VARCHAR(255)', ''],
+    ['content', 'TEXT', ''],
+    ['author_id', 'VARCHAR(50)', 'FK'],
+    ['author_name', 'VARCHAR(50)', ''],
+    ['view_count', 'INT', ''],
+    ['route_data', 'TEXT', ''],
+    ['route_name', 'VARCHAR(255)', ''],
+    ['created_at', 'DATETIME', ''],
+    ['updated_at', 'DATETIME', ''],
+  ]
+});
+
+const notices = drawTable(60, 770, {
+  name: 'notices', accent: C_CONTENT,
+  cols: [
+    ['id', 'BIGINT', 'PK'],
+    ['title', 'VARCHAR(255)', ''],
+    ['content', 'TEXT', ''],
+    ['author_id', 'VARCHAR(50)', 'FK'],
+    ['author_name', 'VARCHAR(50)', ''],
+    ['is_pinned', 'BOOLEAN', ''],
+    ['created_at', 'DATETIME', ''],
+    ['updated_at', 'DATETIME', ''],
+  ]
+});
+
+// ── 우측 : 사용자 소유 데이터 (user_id → users) ──
+const travel_plans = drawTable(1000, 60, {
+  name: 'travel_plans', accent: C_OWNED,
+  cols: [
+    ['id', 'BIGINT', 'PK'],
+    ['user_id', 'VARCHAR(50)', 'FK'],
+    ['title', 'VARCHAR(255)', ''],
+    ['places_json', 'TEXT', ''],
+    ['total_distance', 'DOUBLE', ''],
+    ['transit_fare', 'INT', ''],
+    ['taxi_fare', 'INT', ''],
+    ['created_at', 'DATETIME', ''],
+  ]
+});
+
+const favorites = drawTable(1000, 410, {
+  name: 'favorites', accent: C_OWNED,
+  cols: [
+    ['id', 'BIGINT', 'PK'],
+    ['user_id', 'VARCHAR(50)', 'FK'],
+    ['place_name', 'VARCHAR(255)', ''],
+    ['place_address', 'VARCHAR(500)', ''],
+    ['lat', 'DOUBLE', ''],
+    ['lng', 'DOUBLE', ''],
+    ['memo', 'TEXT', ''],
+    ['created_at', 'DATETIME', ''],
+  ]
+});
+
+const chat_history = drawTable(1000, 760, {
+  name: 'chat_history', accent: C_OWNED,
+  cols: [
+    ['id', 'BIGINT', 'PK'],
+    ['user_id', 'VARCHAR(50)', 'FK'],
+    ['message', 'TEXT', ''],
+    ['response', 'TEXT', ''],
+    ['created_at', 'DATETIME', ''],
+  ]
+});
+
+// ── 하단 중앙 : 관광지 마스터 (독립, KTO 동기화) ──
+const spots = drawTable(528, 680, {
+  name: 'spots', accent: C_MASTER, w: 276,
+  cols: [
+    ['content_id', 'VARCHAR(50)', 'PK'],
+    ['title', 'VARCHAR(255)', ''],
+    ['addr1', 'VARCHAR(500)', ''],
+    ['addr2', 'VARCHAR(500)', ''],
+    ['first_image', 'VARCHAR(500)', ''],
+    ['first_image2', 'VARCHAR(500)', ''],
+    ['mapx', 'DOUBLE', ''],
+    ['mapy', 'DOUBLE', ''],
+    ['area_code', 'VARCHAR(20)', ''],
+    ['sigungu_code', 'VARCHAR(20)', ''],
+    ['content_type_id', 'VARCHAR(20)', ''],
+  ]
+});
+
+// ══════════════════════════════════════════════════════════════════
+// 관계 (users 1 ──< N)
+// ══════════════════════════════════════════════════════════════════
+relation(users, posts,        'author_id', C_CONTENT);
+relation(users, qnas,         'author_id', C_CONTENT);
+relation(users, notices,      'author_id', C_CONTENT);
+relation(users, travel_plans, 'user_id',   C_OWNED);
+relation(users, favorites,    'user_id',   C_OWNED);
+relation(users, chat_history, 'user_id',   C_OWNED);
+
+// ══════════════════════════════════════════════════════════════════
+// 범례
+// ══════════════════════════════════════════════════════════════════
+const lg = el('g', {});
+lg.appendChild(el('rect', { x: 432, y: 70, width: 224, height: 250, rx: 10, fill: '#f8fafc', stroke: '#e2e8f0' }));
+lg.appendChild(el('text', { x: 444, y: 92, 'font-size': 12, 'font-weight': 700, fill: '#334155' }, '범례'));
+
+// 키 배지
+lg.appendChild(el('rect', { x: 444, y: 104, width: 24, height: 13, rx: 3, fill: '#d97706' }));
+lg.appendChild(el('text', { x: 456, y: 114, 'text-anchor': 'middle', 'font-size': 8.5, 'font-weight': 700, fill: '#fff' }, 'PK'));
+lg.appendChild(el('text', { x: 476, y: 114, 'font-size': 10.5, fill: '#475569' }, '기본 키 (Primary Key)'));
+lg.appendChild(el('rect', { x: 444, y: 124, width: 24, height: 13, rx: 3, fill: '#2563eb' }));
+lg.appendChild(el('text', { x: 456, y: 134, 'text-anchor': 'middle', 'font-size': 8.5, 'font-weight': 700, fill: '#fff' }, 'FK'));
+lg.appendChild(el('text', { x: 476, y: 134, 'font-size': 10.5, fill: '#475569' }, '외래 키 (논리적 참조)'));
+
+// 카디널리티
+lg.appendChild(el('line', { x1: 446, y1: 158, x2: 476, y2: 158, stroke: '#64748b', 'stroke-width': 1.5 }));
+lg.appendChild(el('line', { x1: 452, y1: 151, x2: 452, y2: 165, stroke: '#64748b', 'stroke-width': 1.5 }));
+lg.appendChild(el('text', { x: 484, y: 162, 'font-size': 10.5, fill: '#475569' }, '"1" (단일)'));
+lg.appendChild(el('line', { x1: 446, y1: 186, x2: 470, y2: 186, stroke: '#64748b', 'stroke-width': 1.5 }));
+lg.appendChild(el('line', { x1: 470, y1: 186, x2: 458, y2: 179, stroke: '#64748b', 'stroke-width': 1.5 }));
+lg.appendChild(el('line', { x1: 470, y1: 186, x2: 458, y2: 193, stroke: '#64748b', 'stroke-width': 1.5 }));
+lg.appendChild(el('text', { x: 484, y: 190, 'font-size': 10.5, fill: '#475569' }, '"N" (다, 까마귀발)'));
+
+// 색상 의미
+[['#4338ca', '회원 (허브)'], ['#0f766e', '게시판 콘텐츠'], ['#2563eb', '사용자 소유 데이터'], ['#b45309', '관광지 마스터(KTO)']]
+  .forEach(([c, t], i) => {
+    const yy = 214 + i*20;
+    lg.appendChild(el('rect', { x: 444, y: yy-9, width: 13, height: 11, rx: 2, fill: c }));
+    lg.appendChild(el('text', { x: 464, y: yy, 'font-size': 10.5, fill: '#475569' }, t));
+  });
+
+nodeLayer.appendChild(lg);
+
+// spots 독립성 주석
+const note = el('g', {});
+note.appendChild(el('text', { x: 528, y: 968, 'font-size': 11, 'font-style': 'italic', fill: '#b45309' }, '※ spots: KTO API 동기화 · FK 없음(독립 마스터)'));
+note.appendChild(el('text', { x: 528, y: 984, 'font-size': 11, 'font-style': 'italic', fill: '#94a3b8' }, '   즐겨찾기/계획에 좌표·이름을 스냅샷 복사'));
+nodeLayer.appendChild(note);
+</script>
+</body>
+</html>
