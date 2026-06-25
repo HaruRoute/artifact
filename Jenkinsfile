@@ -85,14 +85,12 @@ pipeline {
                     aws ecr get-login-password --region ${AWS_REGION} \
                         | docker login --username AWS --password-stdin ${ECR_REGISTRY}
 
-                    for svc in frontend backend ai_server mysql; do
-                        # mysql은 공식 이미지라 빌드 안 함 → 건너뜀
-                        if [ "$svc" = "mysql" ]; then continue; fi
-
+                    for svc in frontend backend ai_server; do
                         ecr_svc=$(echo $svc | tr _ -)
-                        docker tag haruroute-${ecr_svc}:latest \
+                        local_image="haruroute-${svc}:latest"
+                        docker tag ${local_image} \
                             ${ECR_REGISTRY}/${ECR_NAMESPACE}/${ecr_svc}:${IMAGE_TAG}
-                        docker tag haruroute-${ecr_svc}:latest \
+                        docker tag ${local_image} \
                             ${ECR_REGISTRY}/${ECR_NAMESPACE}/${ecr_svc}:latest
                         docker push ${ECR_REGISTRY}/${ECR_NAMESPACE}/${ecr_svc}:${IMAGE_TAG}
                         docker push ${ECR_REGISTRY}/${ECR_NAMESPACE}/${ecr_svc}:latest
