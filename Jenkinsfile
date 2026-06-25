@@ -70,7 +70,7 @@ pipeline {
             steps {
                 sh '''
                     cd "${DEPLOY_DIR}"
-                    docker compose build --no-cache
+                    docker compose build
                 '''
             }
         }
