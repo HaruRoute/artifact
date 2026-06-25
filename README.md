@@ -24,9 +24,102 @@
 
 ---
 
+## CI/CD 인프라
+
+### 전체 파이프라인 흐름
+
+```
+개발자 로컬
+    │ git push
+    ▼
+GitHub (HaruRoute/artifact, frontend, backend, ai_server)
+    │ Webhook
+    ▼
+Jenkins EC2 (13.219.78.219:8080)
+    │ 1. Checkout   - 소스 repos pull
+    │ 2. Inject Secrets - 시크릿 파일 주입 (Jenkins Credentials)
+    │ 3. Build      - Docker 이미지 빌드 (docker compose build)
+    │ 4. Push to ECR - ECR에 :빌드번호 + :latest 태그로 push
+    │ 5. Deploy to k3s - SSH → k3s EC2에 kubectl apply + rollout restart
+    │ 6. Health Check  - 프론트/백엔드 HTTP 상태 확인
+    ▼
+Amazon ECR (969658552435.dkr.ecr.us-east-1.amazonaws.com/haruroute/)
+    │ haruroute/frontend:latest
+    │ haruroute/backend:latest
+    │ haruroute/ai-server:latest
+    ▼
+k3s EC2 (18.206.224.73) - Kubernetes 클러스터
+    ├── frontend  Pod  → nginx (port 80)
+    ├── backend   Pod  → Spring Boot (port 8080) → RDS MySQL
+    └── ai-server Pod  → FastAPI (port 8000)
+         ↑
+    Traefik Ingress (/ → frontend, /api → backend)
+         ↑
+    외부 접속: http://18.206.224.73
+```
+
+### AWS 인프라 구성
+
+| 구성요소 | 사양 | 역할 |
+|---------|------|------|
+| Jenkins EC2 | t2.medium (us-east-1) | CI/CD 서버 (Docker 빌드 + ECR push) |
+| k3s EC2 | t2.medium (us-east-1) | Kubernetes 클러스터 (서비스 실행) |
+| Amazon ECR | us-east-1 | Docker 이미지 레지스트리 |
+| Amazon RDS | db.t4g.micro MySQL 8.0 | 관리형 DB (백엔드 전용) |
+
+### 시크릿 관리 전략
+
+- DB 비밀번호, JWT Secret, API Key 등 민감 정보는 **Git에 저장하지 않음**
+- Jenkins Credentials에 시크릿 파일로 등록 (`haruroute-env`, `haruroute-secret-yml` 등)
+- k8s Secret(`haruroute-secret`)은 `kubectl create secret` 명령으로 직접 생성 (YAML 파일 저장 금지)
+- ECR 인증은 Jenkins/k3s EC2에 IAM Role(`AmazonEC2ContainerRegistryFullAccess`) 부여
+
+### k8s 매니페스트 (`k8s/`)
+
+| 파일 | 내용 |
+|------|------|
+| `backend-deployment.yaml` | Spring Boot Deployment + Service, RDS 연결 env 포함 |
+| `frontend-deployment.yaml` | nginx Deployment + NodePort Service |
+| `ai-server-deployment.yaml` | FastAPI Deployment + Service |
+| `ingress.yaml` | Traefik Ingress (/ → frontend, /api → backend) |
+
+### Jenkins 주요 설정
+
+- **Credentials 등록 필요**
+  - `haruroute-env` (Secret file) - 루트 `.env`
+  - `haruroute-frontend-env` (Secret file) - `frontend/.env`
+  - `haruroute-secret-yml` (Secret file) - `application-secret.yml`
+  - `haruroute-ai-env` (Secret file) - `ai_server/.env`
+  - `k3s-ssh-key` (SSH Username with private key) - k3s EC2 접속 키
+- **IAM Role** - Jenkins EC2에 `AmazonEC2ContainerRegistryFullAccess` 정책 포함 Role 부여
+
+---
+
 ## 📅 주요 업데이트 및 개선 사항
 
-### 13) 2026-06-25: Docker Compose 환경 구성, TutorialTour 버그 수정, UI 개선 (최신)
+### 14) 2026-06-25: CI/CD + k8s 인프라 구축 (최신)
+
+* **CI/CD 파이프라인 구축 (Jenkins + Amazon ECR + k3s)**:
+  - GitHub push → Jenkins Webhook → Docker 빌드 → ECR push → k3s 자동 배포까지 완전 자동화된 파이프라인을 구성했습니다.
+  - `Jenkinsfile`의 `Push to ECR` 스테이지: `aws ecr get-login-password`로 ECR 인증 후 `:빌드번호` + `:latest` 이중 태그로 push하여 버전 롤백이 가능하도록 했습니다.
+  - `Deploy to k3s` 스테이지: Jenkins에서 k3s EC2로 SSH 접속 후 `kubectl apply` + `kubectl rollout restart`로 무중단 업데이트를 구현했습니다.
+
+* **Amazon ECR 도입**:
+  - Docker Hub 대신 AWS ECR을 이미지 레지스트리로 사용하여 VPC 내 private 통신과 IAM 기반 접근 제어를 적용했습니다.
+  - k3s EC2의 `/etc/rancher/k3s/registries.yaml`에 ECR 인증을 등록하여 이미지 pull 시 자동 인증합니다.
+
+* **k3s Kubernetes 클러스터 구성**:
+  - t2.medium EC2에 k3s(경량 Kubernetes)를 설치하여 4개 서비스(frontend, backend, ai-server + Traefik Ingress)를 운영합니다.
+  - Traefik Ingress로 단일 IP(`18.206.224.73`)에서 경로 기반 라우팅(`/` → frontend, `/api` → backend)을 구현했습니다.
+
+* **Amazon RDS MySQL 전환**:
+  - Docker Compose의 MySQL 컨테이너를 Amazon RDS(db.t4g.micro, MySQL 8.0)로 교체하여 백업/패치/고가용성을 AWS가 관리하도록 했습니다.
+  - Spring Boot Flyway가 RDS 연결 후 자동으로 마이그레이션 및 초기 데이터 삽입을 수행합니다.
+
+* **k8s 시크릿 분리**:
+  - `kubectl create secret generic haruroute-secret`으로 민감 정보를 직접 주입하여 Git 저장소에 credentials가 노출되지 않도록 했습니다.
+
+### 13) 2026-06-25: Docker Compose 환경 구성, TutorialTour 버그 수정, UI 개선
 
 * **인프라 — Docker Compose 4컨테이너 환경 구성**:
   - `frontend`(nginx), `backend`(Spring Boot), `ai_server`(FastAPI), `mysql` 4개 컨테이너를 `docker-compose.yml` 단일 파일로 관리합니다.
@@ -375,6 +468,17 @@
 | JJWT | 0.12.6 |
 | Lombok | - |
 | BCrypt | - |
+
+### Infrastructure / DevOps
+| 기술 | 역할 |
+|------|------|
+| Jenkins | CI/CD 파이프라인 (빌드·테스트·배포 자동화) |
+| Docker / Docker Compose | 컨테이너 빌드 및 로컬 실행 |
+| Amazon ECR | Docker 이미지 레지스트리 |
+| k3s (Kubernetes) | 경량 쿠버네티스 클러스터 |
+| Amazon RDS MySQL 8.0 | 관리형 데이터베이스 |
+| Amazon EC2 | 서버 인프라 (Jenkins, k3s) |
+| Traefik Ingress | k8s 경로 기반 라우팅 |
 
 ### AI Server (FastAPI)
 | 기술 | 버전 |
