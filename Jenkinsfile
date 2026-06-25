@@ -3,8 +3,11 @@ pipeline {
 
     environment {
         GITHUB_USER = 'HaruRoute'
-        // EC2 내 배포 디렉토리
         DEPLOY_DIR  = '/opt/haruroute'
+        ECR_REGISTRY = '969658552435.dkr.ecr.us-east-1.amazonaws.com'
+        ECR_NAMESPACE = 'haruroute'
+        AWS_REGION   = 'us-east-1'
+        IMAGE_TAG    = "${BUILD_NUMBER}"
     }
 
     triggers {
@@ -75,7 +78,30 @@ pipeline {
             }
         }
 
-        // ── 4. 기존 컨테이너 내리고 새로 올리기 ───────────────────
+        // ── 4. ECR Push ────────────────────────────────────────────
+        stage('Push to ECR') {
+            steps {
+                sh '''
+                    aws ecr get-login-password --region ${AWS_REGION} \
+                        | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+
+                    for svc in frontend backend ai_server mysql; do
+                        # mysql은 공식 이미지라 빌드 안 함 → 건너뜀
+                        if [ "$svc" = "mysql" ]; then continue; fi
+
+                        ecr_svc=$(echo $svc | tr _ -)
+                        docker tag haruroute-${ecr_svc}:latest \
+                            ${ECR_REGISTRY}/${ECR_NAMESPACE}/${ecr_svc}:${IMAGE_TAG}
+                        docker tag haruroute-${ecr_svc}:latest \
+                            ${ECR_REGISTRY}/${ECR_NAMESPACE}/${ecr_svc}:latest
+                        docker push ${ECR_REGISTRY}/${ECR_NAMESPACE}/${ecr_svc}:${IMAGE_TAG}
+                        docker push ${ECR_REGISTRY}/${ECR_NAMESPACE}/${ecr_svc}:latest
+                    done
+                '''
+            }
+        }
+
+        // ── 5. 기존 컨테이너 내리고 새로 올리기 ───────────────────
         stage('Deploy') {
             steps {
                 sh '''
@@ -89,7 +115,7 @@ pipeline {
             }
         }
 
-        // ── 5. 헬스 체크 ───────────────────────────────────────────
+        // ── 6. 헬스 체크 ───────────────────────────────────────────
         stage('Health Check') {
             steps {
                 sh '''
