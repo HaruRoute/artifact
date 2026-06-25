@@ -2,8 +2,7 @@ pipeline {
     agent any
 
     environment {
-        // ✏️ 본인 GitHub 계정명 또는 org명으로 변경
-        GITHUB_USER = 'YOUR_GITHUB_USERNAME'
+        GITHUB_USER = 'HaruRoute'
         // EC2 내 배포 디렉토리
         DEPLOY_DIR  = '/opt/haruroute'
     }
