@@ -143,10 +143,12 @@ pipeline {
                     curl -sf http://${K3S_HOST}/ -o /dev/null \
                         && echo "Frontend healthy" \
                         || echo "Frontend health check failed"
-                    curl -sf http://${K3S_HOST}/api/actuator/health \
-                        -o /dev/null -w "%{http_code}" | grep -E "200|401" \
-                        && echo " — Backend healthy" \
-                        || echo "Backend health check failed"
+                    STATUS=\$(curl -s -o /dev/null -w "%{http_code}" http://${K3S_HOST}/api/actuator/health)
+                    if [ "\$STATUS" = "200" ] || [ "\$STATUS" = "401" ]; then
+                        echo "Backend healthy (HTTP \$STATUS)"
+                    else
+                        echo "Backend health check failed (HTTP \$STATUS)"
+                    fi
                 """
             }
         }
