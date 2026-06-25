@@ -1,7 +1,7 @@
 # 관광지 추천 챗봇 — 서울 10반 팀프로젝트
 
 생성형 AI와 RAG(Retrieval-Augmented Generation)를 활용한 관광지 추천 챗봇 프로젝트입니다.  
-사용자는 웹 화면에서 질문을 입력하고, 챗봇은 문서 벡터 검색 결과와 GPT를 결합해 맞춤 여행 정보를 제공합니다.
+사용자는 웹 화면에서 질문을 입력하고, 챗봇은 문서 벡터 검색 결과와 Claude를 결합해 맞춤 여행 정보를 제공합니다.
 
 ---
 
@@ -25,7 +25,7 @@
 
 ### 주요 기능
 - 채팅형 UI에서 관광지·여행 코스 질문/응답
-- RAG 기반 문서 검색 + OpenAI GPT 응답 생성
+- RAG 기반 문서 검색 + Claude Sonnet 응답 생성
 - 빠른 질문 버튼 6개로 주요 시나리오 즉시 실행
 - 회원가입/로그인/JWT 인증
 - Kakao Map 연동으로 관광지 위치 확인
@@ -71,7 +71,7 @@ k3s EC2 (18.206.224.73) - Kubernetes 클러스터
 
 | 구성요소 | 사양 | 역할 |
 |---------|------|------|
-| Jenkins EC2 | t2.medium (us-east-1) | CI/CD 서버 (Docker 빌드 + ECR push) |
+| Jenkins EC2 | t2.small (us-east-1) | CI/CD 서버 (Docker 빌드 + ECR push) |
 | k3s EC2 | t2.medium (us-east-1) | Kubernetes 클러스터 (서비스 실행) |
 | Amazon ECR | us-east-1 | Docker 이미지 레지스트리 |
 | Amazon RDS | db.t4g.micro MySQL 8.0 | 관리형 DB (백엔드 전용) |
@@ -81,7 +81,7 @@ k3s EC2 (18.206.224.73) - Kubernetes 클러스터
 - DB 비밀번호, JWT Secret, API Key 등 민감 정보는 **Git에 저장하지 않음**
 - Jenkins Credentials에 시크릿 파일로 등록 (`haruroute-env`, `haruroute-secret-yml` 등)
 - k8s Secret(`haruroute-secret`)은 `kubectl create secret` 명령으로 직접 생성 (YAML 파일 저장 금지)
-- ECR 인증은 Jenkins/k3s EC2에 IAM Role(`AmazonEC2ContainerRegistryFullAccess`) 부여
+- ECR 인증은 각 EC2의 IAM Role로 처리 — Jenkins EC2는 push 권한(`AmazonEC2ContainerRegistryFullAccess`), k3s EC2는 pull 권한(`AmazonEC2ContainerRegistryReadOnly`)으로 최소 권한 적용
 
 ### k8s 매니페스트 (`k8s/`)
 
@@ -100,7 +100,7 @@ k3s EC2 (18.206.224.73) - Kubernetes 클러스터
   - `haruroute-secret-yml` (Secret file) - `application-secret.yml`
   - `haruroute-ai-env` (Secret file) - `ai_server/.env`
   - `k3s-ssh-key` (SSH Username with private key) - k3s EC2 접속 키
-- **IAM Role** - Jenkins EC2에 `AmazonEC2ContainerRegistryFullAccess` 정책 포함 Role 부여
+- **IAM Role** - Jenkins EC2에 `AmazonEC2ContainerRegistryFullAccess`(push), k3s EC2에 `AmazonEC2ContainerRegistryReadOnly`(pull) 정책 포함 Role 부여
 
 ---
 
@@ -627,7 +627,7 @@ Jenkins EC2 (t2.small) ──► Amazon ECR ──► k3s EC2
 │   ├── main.py                      # RAG 서버 (임베딩·검색·생성)
 │   ├── data/                        # 지식 문서 (txt, pdf, md)
 │   ├── chroma_data/                 # ChromaDB 영속 저장소
-│   └── .env                         # OPENAI_API_KEY
+│   └── .env                         # GMS_API_KEY (Claude 프록시)
 │
 ├── gantt.html                       # 프로젝트 간트차트
 ├── usecase.html                     # 유즈케이스 다이어그램
@@ -662,7 +662,7 @@ Jenkins EC2 (t2.small) ──► Amazon ECR ──► k3s EC2
 │   ├── 3.4 ChromaDB 연동 및 벡터 저장
 │   ├── 3.5 /integrated-chat RAG 엔드포인트 구현
 │   ├── 3.6 /upload 문서 업로드 API 구현
-│   ├── 3.7 GPT 프롬프트 최적화
+│   ├── 3.7 Claude 프롬프트 최적화
 │   └── 3.8 ChromaDB 영속성 처리 (재시작 시 데이터 유지)
 │
 ├── 4. 백엔드 개발 (Spring Boot)
@@ -748,19 +748,19 @@ Jenkins EC2 (t2.small) ──► Amazon ECR ──► k3s EC2
 | POST | `/integrated-chat` | RAG 기반 관광지 추천 답변 |
 | POST | `/upload` | 문서 업로드 및 임베딩 |
 | POST | `/search` | 벡터 유사도 검색 |
-| POST | `/chat` | 일반 GPT 응답 |
+| POST | `/chat` | 일반 Claude 응답 |
 
 ---
 
 ## 7. 실행 방법
 
 ### 사전 준비
-- Java 17, Node.js 18+, Python 3.10+ 설치
-- MySQL 실행 후 `chatbot_db` 데이터베이스 생성
-- `ai_server/.env` 파일에 OpenAI API Key 설정
+- Docker / Docker Compose 설치 (로컬 통합 실행)
+- 또는 개별 실행 시: Java 17, Node.js 18+, Python 3.10+ 및 MySQL `chatbot_db` 생성
+- `ai_server/.env` 파일에 GMS(Claude 프록시) API Key 설정
 
 ```env
-OPENAI_API_KEY=sk-...
+GMS_API_KEY=...
 ```
 
 ### 1단계 — AI 서버 실행
@@ -963,9 +963,10 @@ export const options = {
 |------|------|----------|
 | 실시간 데이터 | 문서 기반 정적 정보 | 공공 API 연동 (운영시간, 요금) |
 | 개인화 추천 | 없음 | 사용자 취향/위치 기반 필터링 |
-| CORS 설정 | `*` 전체 허용 | 운영 도메인으로 제한 |
+| CORS 설정 | `CorsConfig`로 허용 origin 분리 관리 | 운영 도메인 환경변수 주입 |
 | 채팅 이력 | DB 저장 | 페이지네이션, 검색 기능 추가 |
-| 테스트 | 수동 테스트 | JUnit / Jest 자동화 테스트 |
+| 테스트 | JUnit 단위 + Playwright E2E | 커버리지 측정 및 CI 단계 통합 |
+| 부하 테스트 | 미측정 | k6 부하 테스트 후 HPA·캐싱 적용 |
 
 ---
 
