@@ -26,7 +26,45 @@
 
 ## 📅 주요 업데이트 및 개선 사항
 
-### 12) 2026-06-24: RAG 지식 문서 자동 생성 및 매일 새벽 갱신 스케줄러 (최신)
+### 13) 2026-06-25: Docker Compose 환경 구성, TutorialTour 버그 수정, UI 개선 (최신)
+
+* **인프라 — Docker Compose 4컨테이너 환경 구성**:
+  - `frontend`(nginx), `backend`(Spring Boot), `ai_server`(FastAPI), `mysql` 4개 컨테이너를 `docker-compose.yml` 단일 파일로 관리합니다.
+  - nginx 리버스 프록시(`/api/` → `backend:8080`)를 통해 CORS 문제를 해결했습니다. 프론트엔드 빌드 시 `VITE_API_URL=/api`로 환경변수를 주입하여 모든 API 요청이 상대경로로 nginx를 경유합니다.
+  - MySQL 포트를 `3307:3306`으로 매핑하여 로컬 MySQL과 충돌을 방지했습니다.
+
+* **Backend — Spring Boot 4.0 Flyway 수동 설정 (`FlywayConfig.java`)**:
+  - Spring Boot 4.0에서 `FlywayAutoConfiguration`이 제거된 변경사항에 대응하여 `@Bean`으로 Flyway를 수동 등록했습니다.
+  - `ApplicationRunner` 실행 전 ApplicationContext 초기화 단계에서 마이그레이션이 완료되어 `DataInitializer`와의 실행 순서 문제를 방지합니다.
+  - `application.yml`의 `baseline-on-migrate: false`로 변경하여 최초 실행 시 V1 스킵 문제를 해결했습니다.
+
+* **Frontend — TutorialTour 다크 스크린 버그 수정 (`TutorialTour.vue`)**:
+  - 최초 로그인 시 투어 스포트라이트가 참조하는 DOM 요소(`tour-chat-btn` 등)가 없을 경우 `box-shadow: 0 0 0 9999px` 오버레이가 전체 화면을 덮는 버그를 수정했습니다.
+  - `updatePosition()`에서 요소가 없으면 spotlight를 `display:none`으로 숨기고 tooltip을 화면 중앙에 배치하여 다음 버튼을 클릭할 수 있도록 처리했습니다.
+  - tooltip 위치 계산 로직 개선: 요소 하단 공간 부족 시 위쪽에 표시하는 `above` 모드의 오프셋을 `160px → 220px`로 조정하여 tooltip이 spotlight와 겹치지 않도록 수정했습니다.
+
+* **Frontend — TutorialTour 누락 ID 추가 및 게시판 스텝 신설**:
+  - 기존 투어에서 참조하던 4개 ID(`tour-chat-btn`, `tour-planner-btn`, `tour-plans-btn`, `tour-favorites-btn`)가 DOM에 없어 동작하지 않던 문제를 해결했습니다.
+  - `ChatbotWidget.vue` FAB 버튼에 `id="tour-chat-btn"`, `RoutePlanner.vue` 패널 헤딩에 `id="tour-planner-btn"`, `Navbar.vue`의 내 보관함 버튼에 `id="tour-plans-btn"`, 게시판 버튼에 `id="tour-board-btn"` 추가.
+  - `tour-favorites-btn` 스텝을 제거하고 내 보관함 스텝 설명에 즐겨찾기 안내를 통합했습니다.
+  - 게시판(`tour-board-btn`) 스텝을 신설하여 총 6단계 투어로 구성했습니다.
+
+* **Frontend — ChatbotWidget 초기 안내 메시지 및 빠른 질문 버튼 개선**:
+  - 챗봇 최초 진입 시 빈 화면 대신 AI 도우미 인사 메시지를 첫 번째 메시지로 표시합니다.
+  - 입력창 위에 빠른 질문 버튼 5개를 항상 노출하여 시나리오 진입 경험을 개선했습니다.
+
+* **Frontend — ProfileModal UI 리디자인 (`ProfileModal.vue`)**:
+  - 기존 Bootstrap 기본 스타일 모달을 현재 앱 디자인 언어(Gowun Batang 서체, IBM Plex Mono, terracotta 컬러 `#b85c38`, flat 인풋)에 맞게 전면 재작성했습니다.
+  - Navbar에 `홍길동님 ✎` 버튼을 추가하여 클릭 시 프로필 수정 모달이 열리도록 진입점을 복원했습니다.
+
+* **Frontend — Kakao Maps JavaScript 키 수정 (`.env`)**:
+  - `.env`에 잘못된 키(`edaf4cc3...`)가 등록되어 있던 문제를 실제 사용 키(`1c326fab...`)로 수정했습니다.
+
+* **프로젝트 관리 — `.gitignore` 강화 및 `.env.example` 추가**:
+  - 기존 `.gitignore`가 루트 `.env`만 차단하던 것을 `frontend/.env`, `ai_server/.env`, `backend/src/main/resources/application-secret.yml`까지 모두 차단하도록 보완했습니다.
+  - `application-secret.yml.example`, `.env.example`, `frontend/.env.example` 3개의 팀원용 환경변수 템플릿 파일을 추가했습니다.
+
+### 12) 2026-06-24: RAG 지식 문서 자동 생성 및 매일 새벽 갱신 스케줄러
 
 * **AI Server — DB 기반 RAG 문서 자동 생성 (`generate_prompt.py` 신설)**:
   - MySQL `spots` 테이블에서 전체 관광지 데이터(50,686개)를 조회하여 `data/prompt.txt`를 자동 생성하는 스크립트를 추가했습니다.
