@@ -10,6 +10,11 @@ services:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    command: >
+      --innodb-buffer-pool-size=128M
+      --performance-schema=OFF
+      --max-connections=50
+    mem_limit: 256m
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -32,6 +37,8 @@ services:
       ODSAY_API_KEY: ${ODSAY_API_KEY}
       KAKAO_REST_API_KEY: ${KAKAO_REST_API_KEY}
       AI_SERVER_URL: http://ai_server:8000
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseContainerSupport"
+    mem_limit: 512m
     depends_on:
       mysql:
         condition: service_healthy
@@ -41,6 +48,7 @@ services:
     container_name: haruroute-frontend
     ports:
       - "80:80"
+    mem_limit: 64m
     depends_on:
       - backend
 
@@ -51,6 +59,7 @@ services:
       - "8000:8000"
     environment:
       GMS_API_KEY: ${GMS_API_KEY}
+    mem_limit: 512m
     volumes:
       - chroma_data:/app/chroma_data
 
