@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-server
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-server
+  template:
+    metadata:
+      labels:
+        app: ai-server
+    spec:
+      containers:
+        - name: ai-server
+          image: 969658552435.dkr.ecr.us-east-1.amazonaws.com/haruroute/ai-server:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: GMS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: haruroute-secret
+                  key: GMS_API_KEY
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-server-service
+  namespace: default
+spec:
+  selector:
+    app: ai-server
+  ports:
+    - port: 8000
+      targetPort: 8000

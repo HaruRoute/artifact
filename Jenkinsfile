@@ -2,12 +2,14 @@ pipeline {
     agent any
 
     environment {
-        GITHUB_USER = 'HaruRoute'
-        DEPLOY_DIR  = '/opt/haruroute'
-        ECR_REGISTRY = '969658552435.dkr.ecr.us-east-1.amazonaws.com'
+        GITHUB_USER   = 'HaruRoute'
+        DEPLOY_DIR    = '/opt/haruroute'
+        ECR_REGISTRY  = '969658552435.dkr.ecr.us-east-1.amazonaws.com'
         ECR_NAMESPACE = 'haruroute'
-        AWS_REGION   = 'us-east-1'
-        IMAGE_TAG    = "${BUILD_NUMBER}"
+        AWS_REGION    = 'us-east-1'
+        IMAGE_TAG     = "${BUILD_NUMBER}"
+        K3S_HOST      = '18.206.224.73'
+        K3S_USER      = 'ubuntu'
     }
 
     triggers {
@@ -99,28 +101,53 @@ pipeline {
             }
         }
 
-        // ── 5. 기존 컨테이너 내리고 새로 올리기 ───────────────────
-        stage('Deploy') {
+        // ── 5. k3s 클러스터에 배포 ─────────────────────────────────
+        stage('Deploy to k3s') {
             steps {
-                sh '''
-                    cd "${DEPLOY_DIR}"
-                    docker compose down --remove-orphans
-                    docker compose up -d
-                    echo "Waiting for containers to start..."
-                    sleep 15
-                    docker compose ps
-                '''
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'k3s-ssh-key',
+                    keyFileVariable: 'SSH_KEY'
+                )]) {
+                    sh '''
+                        chmod 600 ${SSH_KEY}
+
+                        # 매니페스트 파일을 k3s EC2로 전송
+                        scp -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                            ${WORKSPACE}/k8s/backend-deployment.yaml \
+                            ${WORKSPACE}/k8s/frontend-deployment.yaml \
+                            ${WORKSPACE}/k8s/ai-server-deployment.yaml \
+                            ${WORKSPACE}/k8s/ingress.yaml \
+                            ${K3S_USER}@${K3S_HOST}:/tmp/
+
+                        # kubectl apply 후 rollout restart로 새 이미지 반영
+                        ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${K3S_USER}@${K3S_HOST} "
+                            sudo kubectl apply -f /tmp/backend-deployment.yaml
+                            sudo kubectl apply -f /tmp/frontend-deployment.yaml
+                            sudo kubectl apply -f /tmp/ai-server-deployment.yaml
+                            sudo kubectl apply -f /tmp/ingress.yaml
+                            sudo kubectl rollout restart deployment/backend deployment/frontend deployment/ai-server
+                            sudo kubectl rollout status deployment/backend --timeout=180s
+                            sudo kubectl rollout status deployment/frontend --timeout=60s
+                            sudo kubectl rollout status deployment/ai-server --timeout=60s
+                        "
+                    '''
+                }
             }
         }
 
         // ── 6. 헬스 체크 ───────────────────────────────────────────
         stage('Health Check') {
             steps {
-                sh '''
-                    curl -sf http://localhost/api/actuator/health \
-                        && echo "Backend healthy" \
-                        || echo "Health check failed — check logs below"
-                '''
+                sh """
+                    sleep 5
+                    curl -sf http://${K3S_HOST}/ -o /dev/null \
+                        && echo "Frontend healthy" \
+                        || echo "Frontend health check failed"
+                    curl -sf http://${K3S_HOST}/api/actuator/health \
+                        -o /dev/null -w "%{http_code}" | grep -E "200|401" \
+                        && echo " — Backend healthy" \
+                        || echo "Backend health check failed"
+                """
             }
         }
     }

@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: 969658552435.dkr.ecr.us-east-1.amazonaws.com/haruroute/backend:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://haruroute-db.c8l6wumq4nqe.us-east-1.rds.amazonaws.com:3306/chatbot_db?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&useSSL=false"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "admin"
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: haruroute-secret
+                  key: RDS_PASSWORD
+            - name: SPRING_PROFILES_INCLUDE
+              value: ""
+            - name: SPRING_FLYWAY_BASELINE_VERSION
+              value: "0"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: haruroute-secret
+                  key: JWT_SECRET
+            - name: KTO_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: haruroute-secret
+                  key: KTO_SERVICE_KEY
+            - name: ODSAY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: haruroute-secret
+                  key: ODSAY_API_KEY
+            - name: KAKAO_REST_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: haruroute-secret
+                  key: KAKAO_REST_API_KEY
+            - name: AI_SERVER_URL
+              value: "http://ai-server-service:8000"
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Xms128m -Xmx384m -XX:+UseContainerSupport"
+          resources:
+            limits:
+              memory: "512Mi"
+            requests:
+              memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: default
+spec:
+  selector:
+    app: backend
+  ports:
+    - port: 8080
+      targetPort: 8080
