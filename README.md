@@ -5,6 +5,15 @@
 
 ---
 
+## 0. 접속 URL
+
+| 환경 | URL |
+|------|-----|
+| 서비스 (k8s) | http://18.206.224.73 |
+| Jenkins CI/CD | http://13.219.78.219:8080 |
+
+---
+
 ## 1. 프로젝트 개요
 
 | 항목 | 내용 |
@@ -760,7 +769,161 @@ npm run dev
 
 ---
 
-## 9. 한계 및 개선 방향
+## 9. 팀원 역할 분담
+
+| 이름 | 역할 |
+|------|------|
+| 방지섭 | 프론트엔드 아키텍처 전환(React→Vue3), Kakao Map 렌더링 최적화, 경로 플래너(OSRM/TSP), 관광지 DB 구축·동기화 스케줄러, Spring Batch, AI 서버 Claude 연동, 전체 UI/UX 디자인, E2E 테스트, **CI/CD 인프라 전체(Jenkins·ECR·k3s·RDS)** |
+| 이경호 | 지도 성능 최적화(마커 풀링·인덱싱), 게시판 탭 분리(자유/질문), ODsay·카카오 모빌리티 요금 API, RAG prompt 자동 갱신, 저장 계획 API, 인증 인터셉터 중앙화 |
+| 이유정 | 경로 플래너 UI 리디자인, 저장 계획 수정 기능 |
+
+---
+
+## 10. 기술 선택 이유
+
+### Jenkins vs GitHub Actions
+GitHub Actions는 별도 설치 없이 바로 사용할 수 있지만, **Jenkins를 선택한 이유**:
+- 빌드 서버를 직접 소유(self-hosted)하므로 월 빌드 시간 제한 없음
+- Docker 빌드가 무거운 AI 서버(PyTorch 이미지)도 캐시 레이어를 자유롭게 유지 가능
+- Jenkins EC2에 IAM Role을 부여해 AWS ECR·k3s 연동을 단순화
+
+### k3s vs EKS
+EKS는 완전관리형이지만 노드당 시간당 비용이 발생. **k3s 선택 이유**:
+- 단일 바이너리로 EC2에 설치해 쿠버네티스 핵심 기능(Deployment·Service·Ingress·Secret)을 직접 운영
+- EKS와 동일한 kubectl 명령으로 k8s 개념 학습
+- 프리티어 t2.medium 위에서 3개 서비스 + Traefik Ingress를 1노드로 운영 가능
+
+### Amazon RDS vs Docker MySQL
+Docker Compose의 MySQL 컨테이너는 컨테이너 재생성 시 볼륨 마운트 설정에 따라 데이터 유실 위험이 존재. **RDS 선택 이유**:
+- 자동 백업·패치·장애 조치를 AWS가 관리
+- 애플리케이션 컨테이너와 DB 라이프사이클 분리 → 배포 시 DB 재시작 불필요
+- Flyway 마이그레이션이 접속 즉시 실행되어 스키마 버전 관리 자동화
+
+### Amazon ECR vs Docker Hub
+- IAM Role 기반 인증으로 별도 credential 없이 Jenkins·k3s EC2에서 push/pull
+- VPC 내부 통신으로 pull 속도 향상 및 외부 요금 절감
+- 빌드 번호 태그(`:17`)와 `:latest` 이중 태그로 버전 롤백 가능
+
+### MyBatis vs JPA
+관광지 데이터(50,746개) 검색 쿼리에 동적 조건(지역코드·콘텐츠타입·좌표범위·키워드)이 복잡하게 조합됨. **MyBatis 선택 이유**:
+- XML 동적 SQL(`<if>`, `<foreach>`)로 조건 조합을 명시적으로 제어
+- Bulk Upsert(`ON DUPLICATE KEY UPDATE`) 등 MySQL 전용 문법을 그대로 사용
+- 실행 쿼리를 눈으로 확인하며 인덱스 최적화 가능
+
+---
+
+## 11. 트러블슈팅
+
+### 1. k3s ECR 이미지 pull 실패
+**문제**: k3s 파드가 `ImagePullBackOff` 오류. ECR은 IAM 인증이 필요한데 k3s 기본 containerd가 인증 방법을 모름.
+
+**원인**: k3s는 Docker와 달리 containerd를 런타임으로 사용하며, `/etc/rancher/k3s/registries.yaml`에 레지스트리 인증을 별도 등록해야 함.
+
+**해결**: k3s EC2에 IAM Role(`AmazonEC2ContainerRegistryReadOnly`) 부여 후, registries.yaml에 ECR 엔드포인트와 인증 토큰 갱신 방식을 등록.
+
+---
+
+### 2. Jenkins ECR Push 이미지명 불일치
+**문제**: `docker push` 실패 — `haruroute-ai-server:latest` 이미지를 찾을 수 없음.
+
+**원인**: `docker compose build` 결과 이미지 이름은 `haruroute-ai_server:latest`(언더스코어)인데, 파이프라인에서 `tr _ -`로 변환해 `haruroute-ai-server:latest`(하이픈)로 `docker tag` 시도.
+
+**해결**: `local_image="haruroute-${svc}:latest"`로 원본 언더스코어 이름을 그대로 참조하고, ECR 대상 이름에만 변환을 적용.
+
+```bash
+local_image="haruroute-${svc}:latest"          # 로컬: 언더스코어 유지
+ecr_svc=$(echo $svc | tr _ -)                   # ECR: 하이픈으로 변환
+docker tag ${local_image} ${ECR_REGISTRY}/.../${ecr_svc}:${IMAGE_TAG}
+```
+
+---
+
+### 3. Backend CrashLoopBackOff — Spring "secret" 프로파일 활성화
+**문제**: k8s 배포 후 백엔드 파드가 `CrashLoopBackOff`. 로그: `The following 1 profile is active: "secret"` → `application-secret.yml` 파일 없음.
+
+**원인**: Docker Compose 환경에서는 Jenkins가 `application-secret.yml`을 빌드 디렉토리에 주입 후 이미지를 빌드. k8s 환경에서는 해당 파일 없이 이미지를 그대로 사용하므로 `secret` 프로파일이 활성화되면 파일을 찾지 못해 컨텍스트 초기화 실패.
+
+**해결**: k8s Deployment에 `SPRING_PROFILES_INCLUDE: ""` 환경변수로 프로파일 비활성화, DB 접속 정보는 `haruroute-secret` k8s Secret에서 env로 직접 주입.
+
+---
+
+### 4. RDS Access Denied — 파드 IP 기반 MySQL 인증 실패
+**문제**: `Access denied for user 'admin'@'172.31.91.86'` — 파드 IP에서 RDS 접속 거부.
+
+**원인**: RDS 마스터 비밀번호가 저장된 값과 불일치. MySQL은 비밀번호 오류 시 클라이언트 호스트 IP를 포함한 `Access denied` 메시지를 반환하므로 k3s 파드 IP가 표시된 것.
+
+**해결**: AWS RDS 콘솔에서 마스터 비밀번호 재설정 후 k8s Secret을 동기화. 이후 RDS에 `CREATE DATABASE chatbot_db` 생성하여 Flyway 마이그레이션 정상 실행 확인.
+
+---
+
+### 5. nginx upstream "backend" 호스트 미발견으로 frontend CrashLoopBackOff
+**문제**: frontend 파드가 `[emerg] host not found in upstream "backend"` 오류로 nginx 시작 실패.
+
+**원인**: `nginx.conf`의 `proxy_pass http://backend:8080`은 Docker Compose의 서비스명(`backend`)을 참조. k8s에서는 Service 이름을 `backend-service`로 생성해 불일치.
+
+**해결**: k8s Service 이름을 `backend-service` → `backend`로 변경하여 nginx.conf를 수정하지 않고 해결. Ingress도 동일하게 업데이트.
+
+---
+
+### 6. React → Vue 3 마이그레이션 중 상태 관리 불일치
+**문제**: React의 `useState` 기반 전역 인증 상태를 Vue 3로 이전 시 컴포넌트 간 로그인 상태가 동기화되지 않음.
+
+**원인**: 각 컴포넌트가 `localStorage`를 독립적으로 읽어 reactive 연결 없이 참조.
+
+**해결**: `composables/useAuth.ts`에 모듈 레벨 `reactive` 객체를 싱글톤으로 선언. 모든 컴포넌트가 동일 참조를 공유하여 로그인/로그아웃 즉시 UI 전체 동기화.
+
+---
+
+### 7. Kakao Map 마커 50,000개 렌더링 성능 저하
+**문제**: 관광지 50,746개 전체를 지도에 마커로 렌더링 시 브라우저 프레임 드랍(1~2fps).
+
+**해결 (3단계 최적화)**:
+1. **뷰포트 컬링**: 지도 `idle` 이벤트에서 현재 화면 bounds 내 마커만 `setMap(map)`, 나머지는 `setMap(null)`
+2. **줌 레벨 필터링**: 줌 축소 시 대표 마커 10%만 표시
+3. **즐겨찾기 비교 복잡도**: 이중 루프 `.find()` → `Map` 인덱스 O(n²) → O(n) 개선
+
+---
+
+## 12. 성능 측정 및 최적화
+
+### 현재 측정된 수치
+
+| 항목 | 개선 전 | 개선 후 | 방법 |
+|------|---------|---------|------|
+| 관광지 마커 렌더링 | 1~2fps (50,000개) | 60fps | 뷰포트 컬링 + 줌 필터링 |
+| 즐겨찾기 상태 동기화 | O(S×F) | O(S+F) | Map 인덱스 |
+| 관광지 DB 동기화 (1,000건) | 건별 트랜잭션 | Bulk Upsert | MyBatis `<foreach>` |
+| spots 검색 쿼리 응답 | ~300ms | ~1ms | 복합 인덱스 (`area_code`, `sigungu_code`, `content_type_id`) |
+| AI 서버 Docker 이미지 크기 | ~10GB (CUDA PyTorch) | ~2GB | CPU-only torch |
+
+### 부하 테스트 계획 (k6)
+
+실제 트래픽 시뮬레이션을 통한 정밀 측정 예정:
+
+```javascript
+// k6 시나리오 예시
+export const options = {
+  scenarios: {
+    spot_search:  { executor: 'ramping-vus', startVUs: 0, stages: [
+      { duration: '30s', target: 50 },
+      { duration: '1m',  target: 100 },
+      { duration: '30s', target: 0 },
+    ]},
+  },
+  thresholds: {
+    http_req_duration: ['p(95)<500'],  // 95th percentile 500ms 이내
+    http_req_failed:   ['rate<0.01'],  // 에러율 1% 미만
+  },
+};
+```
+
+**측정 대상 API**: `/api/spots` (지도 검색), `/api/route/optimize` (TSP), `/integrated-chat` (RAG 챗봇)
+
+측정 결과 기반으로 DB 커넥션 풀 튜닝, 캐싱 전략(Redis), HPA(Horizontal Pod Autoscaler) 적용 예정.
+
+---
+
+## 13. 한계 및 개선 방향
 
 | 항목 | 현황 | 개선 방향 |
 |------|------|----------|
