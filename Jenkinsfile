@@ -52,16 +52,16 @@ pipeline {
                     file(credentialsId: 'haruroute-ai-env',       variable: 'AI_ENV'),
                 ]) {
                     sh '''
-                        cp "$ROOT_ENV"     "${DEPLOY_DIR}/.env"
-                        cp "$FRONTEND_ENV" "${DEPLOY_DIR}/frontend/.env"
-                        cp "$SECRET_YML"   "${DEPLOY_DIR}/backend/src/main/resources/application-secret.yml"
-                        cp "$AI_ENV"       "${DEPLOY_DIR}/ai_server/.env"
+                        cp -f "$ROOT_ENV"     "${DEPLOY_DIR}/.env"
+                        cp -f "$FRONTEND_ENV" "${DEPLOY_DIR}/frontend/.env"
+                        cp -f "$SECRET_YML"   "${DEPLOY_DIR}/backend/src/main/resources/application-secret.yml"
+                        cp -f "$AI_ENV"       "${DEPLOY_DIR}/ai_server/.env"
                     '''
                 }
 
                 // docker-compose.yml은 이 Artifact repo에 포함되어 있으므로
                 // Jenkins workspace에서 DEPLOY_DIR로 복사
-                sh "cp '${WORKSPACE}/docker-compose.yml' '${DEPLOY_DIR}/docker-compose.yml'"
+                sh "cp -f '${WORKSPACE}/docker-compose.yml' '${DEPLOY_DIR}/docker-compose.yml'"
             }
         }
 
