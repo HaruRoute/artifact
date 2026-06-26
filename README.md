@@ -105,6 +105,22 @@ GitHub push → Jenkins 자동 빌드 트리거 연동:
 
 `Jenkinsfile`에 `triggers { githubPush() }` 선언으로 Webhook 수신 시 파이프라인 자동 실행.
 
+### ECR 이미지 수명 주기 정책
+
+빌드마다 이미지가 누적되지 않도록 `frontend`, `backend`, `ai-server` 3개 레포지토리에 수명 주기 규칙 적용:
+
+- **조건**: 태그 지정된 이미지 (`*`) 중 이미지 개수 기준
+- **유지 개수**: 최근 5개
+- **작업**: 초과분 자동 만료(삭제)
+
+### ECR 인증 토큰 자동 갱신
+
+ECR 인증 토큰은 12시간 유효. EC2 재시작 후 토큰 만료로 `ImagePullBackOff` 발생하는 문제를 방지하기 위해 k3s EC2에 자동 갱신 설정:
+
+- **갱신 스크립트**: `/usr/local/bin/refresh-ecr-token.sh` — 새 토큰으로 `registries.yaml` 갱신 후 k3s 재시작
+- **실행 주기**: `/etc/cron.d/refresh-ecr-token` — 매 6시간마다 (`0 */6 * * *`)
+- **로그**: `/var/log/refresh-ecr.log`
+
 ### Jenkins 주요 설정
 
 - **Credentials 등록 필요**
@@ -114,6 +130,7 @@ GitHub push → Jenkins 자동 빌드 트리거 연동:
   - `haruroute-ai-env` (Secret file) - `ai_server/.env`
   - `k3s-ssh-key` (SSH Username with private key) - k3s EC2 접속 키
 - **IAM Role** - Jenkins EC2에 `AmazonEC2ContainerRegistryFullAccess`(push), k3s EC2에 `AmazonEC2ContainerRegistryReadOnly`(pull) 정책 포함 Role 부여
+- **문서 변경 시 빌드 스킵**: `README.md` 등 문서만 변경된 push는 파이프라인 초반에 감지하여 불필요한 빌드 생략
 
 ---
 

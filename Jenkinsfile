@@ -19,6 +19,25 @@ pipeline {
 
     stages {
 
+        // ── 0. 문서만 변경된 경우 빌드 스킵 ───────────────────────
+        stage('Check Changes') {
+            steps {
+                script {
+                    def changedFiles = sh(
+                        script: 'git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "initial"',
+                        returnStdout: true
+                    ).trim()
+                    def docOnly = changedFiles.split('\n').every { f ->
+                        f ==~ /.*\.(md|txt|html|csv|docx)/ || f == 'initial'
+                    }
+                    if (docOnly && changedFiles != 'initial') {
+                        currentBuild.result = 'NOT_BUILT'
+                        error('문서 변경만 감지됨 — 빌드 스킵')
+                    }
+                }
+            }
+        }
+
         // ── 1. 소스코드 가져오기 ────────────────────────────────────
         stage('Checkout') {
             steps {
