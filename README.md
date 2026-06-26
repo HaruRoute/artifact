@@ -518,6 +518,9 @@ ECR 인증 토큰은 12시간 유효. EC2 재시작 후 토큰 만료로 `ImageP
 | Amazon RDS MySQL 8.0 | 관리형 데이터베이스 |
 | Amazon EC2 | 서버 인프라 (Jenkins, k3s) |
 | Traefik Ingress | k8s 경로 기반 라우팅 |
+| Prometheus | 메트릭 수집 (Spring Boot Actuator + Node Exporter) |
+| Grafana | 메트릭 시각화 대시보드 (JVM, 서버 리소스) |
+| k6 | 부하 테스트 (VU 기반 시나리오, 임계값 검증) |
 
 ### AI Server (FastAPI)
 | 기술 | 버전 |
@@ -956,7 +959,7 @@ docker tag ${local_image} ${ECR_REGISTRY}/.../${ecr_svc}:${IMAGE_TAG}
 
 ## 11. 성능 측정 및 최적화
 
-### 현재 측정된 수치
+### 프론트엔드 / DB 최적화
 
 | 항목 | 개선 전 | 개선 후 | 방법 |
 |------|---------|---------|------|
@@ -966,30 +969,41 @@ docker tag ${local_image} ${ECR_REGISTRY}/.../${ecr_svc}:${IMAGE_TAG}
 | spots 검색 쿼리 응답 | ~300ms | ~1ms | 복합 인덱스 (`area_code`, `sigungu_code`, `content_type_id`) |
 | AI 서버 Docker 이미지 크기 | ~10GB (CUDA PyTorch) | ~2GB | CPU-only torch |
 
-### 부하 테스트 계획 (k6)
+### k6 부하 테스트 — 백엔드 API 성능 최적화
 
-실제 트래픽 시뮬레이션을 통한 정밀 측정 예정:
+**테스트 환경**
+- 도구: k6 v2.0.0
+- 시나리오: 워밍업(10 VU, 70초) + 부하(최대 100 VU, 190초)
+- 대상 API: `/api/spots` 60% · `/api/route/optimize` 25% · `/api/chatbot/ask` 15%
 
-```javascript
-// k6 시나리오 예시
-export const options = {
-  scenarios: {
-    spot_search:  { executor: 'ramping-vus', startVUs: 0, stages: [
-      { duration: '30s', target: 50 },
-      { duration: '1m',  target: 100 },
-      { duration: '30s', target: 0 },
-    ]},
-  },
-  thresholds: {
-    http_req_duration: ['p(95)<500'],  // 95th percentile 500ms 이내
-    http_req_failed:   ['rate<0.01'],  // 에러율 1% 미만
-  },
-};
-```
+**라운드별 결과 비교**
 
-**측정 대상 API**: `/api/spots` (지도 검색), `/api/route/optimize` (TSP), `/integrated-chat` (RAG 챗봇)
+| 라운드 | 적용 변경사항 | error_rate | spots p95 | route p95 | http 전체 p95 |
+|--------|-------------|-----------|-----------|-----------|--------------|
+| Round 1 (baseline) | — | 48.99% | 1,310ms | 0% 성공 | — |
+| Round 2 | HikariCP 풀 10→20, route 요청 형식 수정 | 24.70% | 1,130ms | ~100ms | — |
+| Round 3 | Spots API 기본 응답 456건→100건 제한 | 25.36% | **22ms** | **7ms** | **255ms** |
 
-측정 결과 기반으로 DB 커넥션 풀 튜닝, 캐싱 전략(Redis), HPA(Horizontal Pod Autoscaler) 적용 예정.
+**최적화 내용 및 효과**
+
+1. **HikariCP 커넥션 풀 확장 (10 → 20)**
+   - 100 VU 동시 접속 시 DB 커넥션 고갈로 대기 큐 포화 → error_rate 49% 발생
+   - `maximum-pool-size: 20`으로 증설 → error_rate **48.99% → 24.70%** 절감
+
+2. **Route API 요청 형식 수정**
+   - k6 스크립트가 `{places: [{name: ...}]}` 형태로 전송했으나 API는 `[{title: ...}]` 형식 요구
+   - 형식 수정 후 route 성공률 **0% → 98%** 회복
+
+3. **Spots API 기본 응답 건수 제한 (456건 → 100건)**
+   - 제한 없이 456건(≈175KB)을 반환 → 100 VU 동시 요청 시 약 17MB/s 네트워크 포화
+   - `effectiveLimit = 100`으로 응답 크기 축소 → spots p95 **1,130ms → 22ms (51배 개선)**
+
+**모니터링 구성**
+
+- **Prometheus**: Jenkins EC2에서 Docker로 실행, 15초 간격 스크레이프
+  - `haruroute-backend` — Spring Boot Actuator(`/api/actuator/prometheus`) JVM·HTTP 메트릭
+  - `k3s-node` / `jenkins-node` — Node Exporter 시스템 메트릭 (CPU·메모리·네트워크)
+- **Grafana** (`http://54.172.210.38:3000`): Node Exporter Full · JVM Micrometer 대시보드
 
 ---
 
@@ -1002,7 +1016,7 @@ export const options = {
 | CORS 설정 | `CorsConfig`로 허용 origin 분리 관리 | 운영 도메인 환경변수 주입 |
 | 채팅 이력 | DB 저장 | 페이지네이션, 검색 기능 추가 |
 | 테스트 | JUnit 단위 + Playwright E2E | 커버리지 측정 및 CI 단계 통합 |
-| 부하 테스트 | 미측정 | k6 부하 테스트 후 HPA·캐싱 적용 |
+| 부하 테스트 | ✅ k6 3라운드 완료 | backend replica 증설 또는 Redis 캐싱으로 추가 개선 가능 |
 
 ---
 
