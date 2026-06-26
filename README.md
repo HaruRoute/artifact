@@ -93,6 +93,18 @@ k3s EC2 (44.203.66.174) - Kubernetes 클러스터
 | `ai-server-deployment.yaml` | FastAPI Deployment + Service |
 | `ingress.yaml` | Traefik Ingress (/ → frontend, /api → backend) |
 
+### GitHub Webhook 설정
+
+GitHub push → Jenkins 자동 빌드 트리거 연동:
+
+| 항목 | 값 |
+|------|-----|
+| Payload URL | `http://<Jenkins_IP>:8080/github-webhook/` |
+| Content type | `application/json` |
+| Events | push 이벤트만 |
+
+`Jenkinsfile`에 `triggers { githubPush() }` 선언으로 Webhook 수신 시 파이프라인 자동 실행.
+
 ### Jenkins 주요 설정
 
 - **Credentials 등록 필요**
