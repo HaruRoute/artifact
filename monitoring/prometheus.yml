@@ -1,0 +1,28 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Spring Boot 백엔드 메트릭 (k3s EC2 → Ingress 통해 수집)
+  - job_name: 'haruroute-backend'
+    metrics_path: '/api/actuator/prometheus'
+    static_configs:
+      - targets: ['44.203.66.174:80']
+    scrape_interval: 15s
+
+  # k3s EC2 Node Exporter (시스템 메트릭)
+  - job_name: 'k3s-node'
+    static_configs:
+      - targets: ['44.203.66.174:9100']
+    scrape_interval: 15s
+
+  # Jenkins EC2 Node Exporter (Jenkins 서버 메트릭)
+  - job_name: 'jenkins-node'
+    static_configs:
+      - targets: ['localhost:9100']
+    scrape_interval: 15s
+
+  # Prometheus 자체 메트릭
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
