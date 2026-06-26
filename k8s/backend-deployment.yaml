@@ -54,6 +54,8 @@ spec:
                   key: KAKAO_REST_API_KEY
             - name: AI_SERVER_URL
               value: "http://ai-server-service:8000"
+            - name: REDIS_HOST
+              value: "redis"
             - name: JAVA_TOOL_OPTIONS
               value: "-Xms128m -Xmx384m -XX:+UseContainerSupport"
           resources:
