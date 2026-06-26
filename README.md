@@ -9,8 +9,8 @@
 
 | 환경 | URL |
 |------|-----|
-| 서비스 (k8s) | http://18.206.224.73 |
-| Jenkins CI/CD | http://13.219.78.219:8080 |
+| 서비스 (k8s) | http://44.203.66.174 |
+| Jenkins CI/CD | http://54.172.210.38:8080 |
 
 ---
 
@@ -45,7 +45,7 @@
 GitHub (HaruRoute/artifact, frontend, backend, ai_server)
     │ Webhook
     ▼
-Jenkins EC2 (13.219.78.219:8080)
+Jenkins EC2 (54.172.210.38:8080)
     │ 1. Checkout   - 소스 repos pull
     │ 2. Inject Secrets - 시크릿 파일 주입 (Jenkins Credentials)
     │ 3. Build      - Docker 이미지 빌드 (docker compose build)
@@ -58,14 +58,14 @@ Amazon ECR (969658552435.dkr.ecr.us-east-1.amazonaws.com/haruroute/)
     │ haruroute/backend:latest
     │ haruroute/ai-server:latest
     ▼
-k3s EC2 (18.206.224.73) - Kubernetes 클러스터
+k3s EC2 (44.203.66.174) - Kubernetes 클러스터
     ├── frontend  Pod  → nginx (port 80)
     ├── backend   Pod  → Spring Boot (port 8080) → RDS MySQL
     └── ai-server Pod  → FastAPI (port 8000)
          ↑
     Traefik Ingress (/ → frontend, /api → backend)
          ↑
-    외부 접속: http://18.206.224.73
+    외부 접속: http://44.203.66.174
 ```
 
 ### AWS 인프라 구성
@@ -120,7 +120,7 @@ k3s EC2 (18.206.224.73) - Kubernetes 클러스터
 
 * **k3s Kubernetes 클러스터 구성**:
   - t2.medium EC2에 k3s(경량 Kubernetes)를 설치하여 4개 서비스(frontend, backend, ai-server + Traefik Ingress)를 운영합니다.
-  - Traefik Ingress로 단일 IP(`18.206.224.73`)에서 경로 기반 라우팅(`/` → frontend, `/api` → backend)을 구현했습니다.
+  - Traefik Ingress로 단일 IP(`44.203.66.174`)에서 경로 기반 라우팅(`/` → frontend, `/api` → backend)을 구현했습니다.
 
 * **Amazon RDS MySQL 전환**:
   - Docker Compose의 MySQL 컨테이너를 Amazon RDS(db.t4g.micro, MySQL 8.0)로 교체하여 백업/패치/고가용성을 AWS가 관리하도록 했습니다.
@@ -508,7 +508,7 @@ k3s EC2 (18.206.224.73) - Kubernetes 클러스터
 
 ```
 사용자 브라우저
-      │ http://18.206.224.73
+      │ http://44.203.66.174
       ▼
 ┌─────────────────────────────────────┐
 │   k3s EC2 (t2.medium)               │

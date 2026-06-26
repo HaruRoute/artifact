@@ -8,7 +8,7 @@ pipeline {
         ECR_NAMESPACE = 'haruroute'
         AWS_REGION    = 'us-east-1'
         IMAGE_TAG     = "${BUILD_NUMBER}"
-        K3S_HOST      = '18.206.224.73'
+        K3S_HOST      = '44.203.66.174'
         K3S_USER      = 'ubuntu'
     }
 
