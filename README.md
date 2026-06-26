@@ -820,17 +820,7 @@ npm run dev
 
 ---
 
-## 9. 팀원 역할 분담
-
-| 이름 | 역할 |
-|------|------|
-| 방지섭 | 프론트엔드 아키텍처 전환(React→Vue3), Kakao Map 렌더링 최적화, 경로 플래너(OSRM/TSP), 관광지 DB 구축·동기화 스케줄러, Spring Batch, AI 서버 Claude 연동, 전체 UI/UX 디자인, E2E 테스트, **CI/CD 인프라 전체(Jenkins·ECR·k3s·RDS)** |
-| 이경호 | 지도 성능 최적화(마커 풀링·인덱싱), 게시판 탭 분리(자유/질문), ODsay·카카오 모빌리티 요금 API, RAG prompt 자동 갱신, 저장 계획 API, 인증 인터셉터 중앙화 |
-| 이유정 | 경로 플래너 UI 리디자인, 저장 계획 수정 기능 |
-
----
-
-## 10. 기술 선택 이유
+## 9. 기술 선택 이유
 
 ### Jenkins vs GitHub Actions
 GitHub Actions는 별도 설치 없이 바로 사용할 수 있지만, **Jenkins를 선택한 이유**:
@@ -863,7 +853,7 @@ Docker Compose의 MySQL 컨테이너는 컨테이너 재생성 시 볼륨 마운
 
 ---
 
-## 11. 트러블슈팅
+## 10. 트러블슈팅
 
 ### 1. k3s ECR 이미지 pull 실패
 **문제**: k3s 파드가 `ImagePullBackOff` 오류. ECR은 IAM 인증이 필요한데 k3s 기본 containerd가 인증 방법을 모름.
@@ -935,7 +925,7 @@ docker tag ${local_image} ${ECR_REGISTRY}/.../${ecr_svc}:${IMAGE_TAG}
 
 ---
 
-## 12. 성능 측정 및 최적화
+## 11. 성능 측정 및 최적화
 
 ### 현재 측정된 수치
 
@@ -974,7 +964,7 @@ export const options = {
 
 ---
 
-## 13. 한계 및 개선 방향
+## 12. 한계 및 개선 방향
 
 | 항목 | 현황 | 개선 방향 |
 |------|------|----------|
@@ -987,7 +977,7 @@ export const options = {
 
 ---
 
-## 10. 화면 설계
+## 13. 화면 설계
 
 ### 메인 화면 (지도 + 관광지 조회)
 ![메인 화면](images/screen_map.png)
@@ -1005,7 +995,7 @@ export const options = {
 
 ---
 
-## 11. 시연 시나리오
+## 14. 시연 시나리오
 
 1. 서울 주말 데이트 코스 추천해줘
 2. 부산 당일치기 여행 코스 추천해줘
