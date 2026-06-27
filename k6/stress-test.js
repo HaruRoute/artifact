@@ -2,7 +2,7 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend, Rate } from 'k6/metrics';
 
-const BASE_URL = 'http://44.203.66.174';
+const BASE_URL = 'http://44.203.66.174'; // 측정 8: 코드 레벨 최적화 후 재측정
 
 const spotsDuration = new Trend('spots_duration', true);
 const routeDuration = new Trend('route_duration', true);
