@@ -89,16 +89,13 @@ function testChat() {
 }
 
 export default function () {
-  const rand = Math.random();
-
-  if (rand < 0.6) {
+  // Stress Test: chat 제외 (AI 서버 포화로 결과 왜곡 방지)
+  // spots 70%, route 30%
+  if (Math.random() < 0.7) {
     testSpots();
     sleep(1);
-  } else if (rand < 0.85) {
-    testRoute();
-    sleep(2);
   } else {
-    testChat();
-    sleep(3);
+    testRoute();
+    sleep(1);
   }
 }
