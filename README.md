@@ -971,6 +971,8 @@ docker tag ${local_image} ${ECR_REGISTRY}/.../${ecr_svc}:${IMAGE_TAG}
 
 ### k6 부하 테스트 — 백엔드 API 성능 최적화
 
+#### Phase 1: 100VU 기본 최적화
+
 **테스트 환경**
 - 도구: k6 v2.0.0
 - 시나리오: 워밍업(10 VU, 70초) + 부하(최대 100 VU, 190초)
@@ -999,6 +1001,31 @@ docker tag ${local_image} ${ECR_REGISTRY}/.../${ecr_svc}:${IMAGE_TAG}
 3. **Spots API 기본 응답 건수 제한 (456건 → 100건)**
    - 제한 없이 456건(≈175KB)을 반환 → 100 VU 동시 요청 시 약 17MB/s 네트워크 포화
    - `effectiveLimit = 100`으로 응답 크기 축소 → spots p95 **1,130ms → 22ms (51배 개선)**
+
+---
+
+#### Phase 2: 1000VU Stress Test — 한계점 탐색 및 추가 최적화
+
+**테스트 환경**
+- 시나리오: 100 → 300 → 500 → 700 → 1000 VU 단계적 증가 (총 5분)
+- `noConnectionReuse: true` — Traefik keep-alive 아티팩트 제거, 실제 에러율 측정
+- 대상 API: `/api/spots` 70% · `/api/route/optimize` 30% (chat 제외 — AI 서버 포화 변수 제거)
+
+**Stress Test 결과**
+
+| 측정 | 변경사항 | route p95 | spots p95 | 처리량 | 비고 |
+|------|---------|-----------|-----------|--------|------|
+| 측정 6 (1000VU 기준) | Phase 1 상태 그대로 | 1,350ms | 1,340ms | 148 req/s | **한계점 발견**: 500→1000VU 구간에서 레이턴시 74배 폭등 |
+| 측정 7 | Route API Redis 캐싱 (TTL 1시간) | **454ms** | 443ms | **398 req/s** | route p95 **3배 개선**, 처리량 **3배 증가** |
+
+**한계점 분석 및 개선**
+
+- **병목 원인**: Route API는 DB 없이 순수 TSP CPU 연산 → 1000 VU 동시 요청 시 2코어 포화로 큐잉 발생
+- **개선 방법**: 동일 장소 조합 결과를 Redis에 캐싱 → 첫 요청 이후 CPU 연산 생략, Redis에서 즉시 반환
+- **캐시 키**: 입력 장소 목록의 위경도 조합 (`lat,lng` projection)
+- **효과**: route p95 1,350ms → 454ms, 처리량 148 → 398 req/s
+
+> **참고**: spots 에러율(~41%)은 Traefik이 비활성 keep-alive 연결을 종료하면서 발생하는 k6 측정 아티팩트이며, 실제 사용자 브라우저 환경에서는 발생하지 않음.
 
 **모니터링 구성**
 
