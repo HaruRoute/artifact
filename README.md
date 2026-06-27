@@ -1032,6 +1032,33 @@ docker tag ${local_image} ${ECR_REGISTRY}/.../${ecr_svc}:${IMAGE_TAG}
 - keyword 파라미터가 전체 spots 요청의 40% 비중이었고, 이 요청이 전부 실패하면서 전체 에러율이 ~40%로 집계됨
 - `encodeURIComponent()` 적용 후 **error_rate 0.00%** — 1000 VU에서도 서버 에러 없음 확인
 
+---
+
+#### Phase 3: 코드 레벨 최적화
+
+**1000VU 안정화 후 전체 코드 정적 분석을 통해 발견한 개선 사항**
+
+| 항목 | 위치 | 개선 내용 |
+|------|------|---------|
+| DB 이중 조회 제거 | `NoticeService.create()` | `checkAdmin()` + `findById()` 2회 → 반환값 재사용으로 1회로 단축 |
+| ObjectMapper 재사용 | `OdsayController` | CompletableFuture 람다 내 `new ObjectMapper()` 반복 생성 → 필드 공유 인스턴스로 교체 |
+| API 키 인코딩 최적화 | `OdsayController` | `URLEncoder.encode(apiKey)` 루프 내 반복 호출 → `@PostConstruct` 1회 인코딩으로 변경 |
+| 캐시 키 정밀도 개선 | `SpotService` | 좌표 파라미터(`minX`, `maxX` 등) 부동소수점 문자열 변환 시 정밀도 오차로 캐시 미스 발생 → `Math.round(x * 10000)` 정수화로 안정적 키 생성 |
+
+> 위 최적화 3건은 현재 stress test 시나리오(spots/route 위주)에서는 수치 변화 없음 — Notice, ODsay API는 stress test 미포함. 실 사용 환경에서 해당 기능 호출 시 효과 발현.
+
+---
+
+**최종 성능 요약 (초기 대비)**
+
+| 지표 | 초기 (측정 1) | 최종 (측정 8, 1000VU) | 개선폭 |
+|------|-------------|---------------------|-------|
+| error_rate | 48.99% | **0.00%** | ↓ 100% |
+| spots p95 | 1,310ms | **315ms** | ↓ 76% |
+| route p95 | 0% 성공 | **305ms** | 성공률 98% |
+| 처리량 | — | **428 req/s** | — |
+| 동시 사용자 | 100 VU | **1,000 VU** | 10배 확장 |
+
 **모니터링 구성**
 
 - **Prometheus**: Jenkins EC2에서 Docker로 실행, 15초 간격 스크레이프
