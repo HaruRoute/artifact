@@ -38,8 +38,8 @@ function testSpots() {
     '?areaCode=1&contentTypeId=12',
     '?areaCode=1&contentTypeId=14',
     '?areaCode=6&contentTypeId=12',
-    '?keyword=경복궁',
-    '?keyword=남산타워',
+    '?keyword=' + encodeURIComponent('경복궁'),
+    '?keyword=' + encodeURIComponent('남산타워'),
   ];
   const url = BASE_URL + '/api/spots' + params[Math.floor(Math.random() * params.length)];
   const res = http.get(url, { tags: { api: 'spots' } });

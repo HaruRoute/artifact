@@ -53,11 +53,11 @@ export const options = {
 // 관광지 검색 테스트
 function testSpots() {
   const params = [
-    '?areaCode=1&contentTypeId=12',       // 서울 관광지
-    '?areaCode=1&contentTypeId=14',       // 서울 문화시설
-    '?areaCode=6&contentTypeId=12',       // 부산 관광지
-    '?keyword=경복궁',
-    '?keyword=남산타워',
+    '?areaCode=1&contentTypeId=12',
+    '?areaCode=1&contentTypeId=14',
+    '?areaCode=6&contentTypeId=12',
+    '?keyword=' + encodeURIComponent('경복궁'),
+    '?keyword=' + encodeURIComponent('남산타워'),
   ];
   const url = BASE_URL + '/api/spots' + params[Math.floor(Math.random() * params.length)];
   const res = http.get(url, { tags: { api: 'spots' } });

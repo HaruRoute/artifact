@@ -1016,16 +1016,21 @@ docker tag ${local_image} ${ECR_REGISTRY}/.../${ecr_svc}:${IMAGE_TAG}
 | 측정 | 변경사항 | route p95 | spots p95 | 처리량 | 비고 |
 |------|---------|-----------|-----------|--------|------|
 | 측정 6 (1000VU 기준) | Phase 1 상태 그대로 | 1,350ms | 1,340ms | 148 req/s | **한계점 발견**: 500→1000VU 구간에서 레이턴시 74배 폭등 |
-| 측정 7 | Route API Redis 캐싱 (TTL 1시간) | **454ms** | 443ms | **398 req/s** | route p95 **3배 개선**, 처리량 **3배 증가** |
+| 측정 7 | Route API Redis 캐싱 (TTL 1시간) | 454ms | 443ms | 398 req/s | route p95 3배 개선 |
+| 측정 8 | k6 한글 URL 인코딩 버그 수정 (`encodeURIComponent`) | **304ms** | **314ms** | **428 req/s** | error_rate **28% → 0%**, 실제 서버 에러 없음 확인 |
 
 **한계점 분석 및 개선**
 
 - **병목 원인**: Route API는 DB 없이 순수 TSP CPU 연산 → 1000 VU 동시 요청 시 2코어 포화로 큐잉 발생
 - **개선 방법**: 동일 장소 조합 결과를 Redis에 캐싱 → 첫 요청 이후 CPU 연산 생략, Redis에서 즉시 반환
 - **캐시 키**: 입력 장소 목록의 위경도 조합 (`lat,lng` projection)
-- **효과**: route p95 1,350ms → 454ms, 처리량 148 → 398 req/s
 
-> **참고**: spots 에러율(~41%)은 Traefik이 비활성 keep-alive 연결을 종료하면서 발생하는 k6 측정 아티팩트이며, 실제 사용자 브라우저 환경에서는 발생하지 않음.
+**측정 오류 발견 및 수정**
+
+- Phase 1~2 전체에서 spots error_rate ~40%의 **실제 원인은 k6 스크립트 버그**였음
+- `?keyword=경복궁` 파라미터를 URL 인코딩 없이 전송 → 서버가 **400 Bad Request** 반환
+- keyword 파라미터가 전체 spots 요청의 40% 비중이었고, 이 요청이 전부 실패하면서 전체 에러율이 ~40%로 집계됨
+- `encodeURIComponent()` 적용 후 **error_rate 0.00%** — 1000 VU에서도 서버 에러 없음 확인
 
 **모니터링 구성**
 
