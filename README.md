@@ -983,7 +983,8 @@ docker tag ${local_image} ${ECR_REGISTRY}/.../${ecr_svc}:${IMAGE_TAG}
 | 측정 1 (기준) | — | 48.99% | 1,310ms | 0% 성공 | — |
 | 측정 2 | HikariCP 풀 10→20, route 요청 형식 수정 | 24.70% | 1,130ms | ~100ms | — |
 | 측정 3 | Spots API 기본 응답 456건→100건 제한 | 25.36% | **22ms** | **7ms** | **255ms** |
-| 측정 4 | backend replica 1→2 (scale out) | **24.15%** | 36ms | 18ms | 275ms |
+| 측정 4 | backend replica 1→2 (scale out) | 24.15% | 36ms | 18ms | 275ms |
+| 측정 5 | Redis 캐싱 (spots 결과 30분 TTL) | **23.96%** | **12ms** | 8ms | 258ms |
 
 **최적화 내용 및 효과**
 
