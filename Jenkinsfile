@@ -133,6 +133,7 @@ pipeline {
                         # 매니페스트 파일을 k3s EC2로 전송
                         scp -i ${SSH_KEY} -o StrictHostKeyChecking=no \
                             ${WORKSPACE}/k8s/backend-deployment.yaml \
+                            ${WORKSPACE}/k8s/backend-hpa.yaml \
                             ${WORKSPACE}/k8s/frontend-deployment.yaml \
                             ${WORKSPACE}/k8s/ai-server-deployment.yaml \
                             ${WORKSPACE}/k8s/redis-deployment.yaml \
@@ -143,6 +144,7 @@ pipeline {
                         ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${K3S_USER}@${K3S_HOST} "
                             sudo kubectl apply -f /tmp/redis-deployment.yaml
                             sudo kubectl apply -f /tmp/backend-deployment.yaml
+                            sudo kubectl apply -f /tmp/backend-hpa.yaml
                             sudo kubectl apply -f /tmp/frontend-deployment.yaml
                             sudo kubectl apply -f /tmp/ai-server-deployment.yaml
                             sudo kubectl apply -f /tmp/ingress.yaml
