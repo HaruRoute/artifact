@@ -1081,16 +1081,24 @@ docker tag ${local_image} ${ECR_REGISTRY}/.../${ecr_svc}:${IMAGE_TAG}
 | p(95) | 1,810ms |
 | 처리량 | 47,977 req (140 req/s) |
 
-**핵심 인사이트: Redis 캐싱 >> HPA scale-out**
+**핵심 인사이트: 병목 유형에 따라 최적화 전략이 달라진다**
 
 | 조건 | p95 | error_rate |
 |------|-----|-----------|
 | 캐시 warm + pod 2개 (측정 8) | 305ms | 0% |
 | 캐시 cold/partial + pod 4개 (측정 10) | 1,810ms | 18.5% |
 
-1000VU 환경에서 성능을 결정하는 주요 인자는 **HPA scale-out(pod 수)이 아닌 Redis 캐시 히트율**임을 확인.  
-캐시 warm 상태 → DB 쿼리 0 → HikariCP 커넥션 여유 → p95 305ms.  
-캐시 cold 상태 → 1000개 동시 요청이 DB에 몰림 → HikariCP 고갈(40 connection) → timeout 폭발.
+이 실험은 **병목 원인을 정확히 특정하는 것**이 목적이었다.
+
+- **CPU-bound 병목** (Route TSP 연산 폭발) → HPA scale-out이 효과적. pod를 늘리면 CPU 코어가 분산됨
+- **I/O-bound 병목** (DB 커넥션 고갈) → HPA는 무의미. pod를 4개로 늘려도 각 pod가 DB 커넥션을 소모하며 HikariCP 총 한도(pod당 20개 × 4 = 80개)가 동시 1000 요청에 순식간에 고갈됨
+
+1000VU 환경의 실제 병목은 **CPU가 아닌 DB I/O**였음.  
+캐시 warm → DB 쿼리 0 → 커넥션 고갈 없음 → p95 305ms.  
+캐시 cold → DB 쿼리 폭주 → 커넥션 고갈 → timeout.
+
+→ **Redis 캐싱으로 DB 쿼리 자체를 제거**하는 것이 인스턴스 확장보다 근본적인 해결책임을 수치로 검증.  
+HPA는 캐시 miss가 발생하는 상황에서 CPU 부하를 분산하는 보완 역할로 유효하며, 두 전략은 상호 보완 관계다.
 
 ---
 
