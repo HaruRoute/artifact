@@ -1049,6 +1049,51 @@ docker tag ${local_image} ${ECR_REGISTRY}/.../${ecr_svc}:${IMAGE_TAG}
 
 ---
 
+#### Phase 4: 인프라 개선 — Soak Test · HPA · FULLTEXT 인덱스
+
+**변경 사항**
+
+| 항목 | 내용 |
+|------|------|
+| Soak Test (측정 9) | 200 VU × 15분 장기 부하 — 메모리 누수·커넥션 고갈 여부 확인 |
+| HPA | CPU 70% 초과 시 backend pod 2→4 자동 스케일 아웃 (`autoscaling/v2`) |
+| CPU resources 추가 | HPA 동작 요건: `requests.cpu: 250m` / `limits.cpu: 500m` |
+| FULLTEXT ngram 인덱스 (V9 migration) | `title LIKE '%keyword%'` 풀스캔 → `MATCH(title) AGAINST(...)` FULLTEXT 조회 |
+
+**Soak Test 결과 (측정 9 — 200VU × 15분)**
+
+| 지표 | 값 |
+|------|----|
+| error_rate | **0.75%** ✓ (목표 < 5%) |
+| p(95) | **80ms** ✓ (목표 < 3,000ms) |
+| 총 요청 | 191,846회 (177 req/s) |
+| spots p95 | 81ms |
+| route p95 | 79ms |
+| HPA scale-out | 200VU 부하 시 CPU 146% 감지 → pod **2→4** 자동 확장, CPU **59%**로 안정화 |
+
+→ **18분 동안 메모리 누수·커넥션 고갈 없음** — 장기 운영 안정성 확인
+
+**Stress Test 재실행 (측정 10 — 1000VU, 캐시 cold 상태)**
+
+| 지표 | 값 |
+|------|----|
+| error_rate | 18.5% |
+| p(95) | 1,810ms |
+| 처리량 | 47,977 req (140 req/s) |
+
+**핵심 인사이트: Redis 캐싱 >> HPA scale-out**
+
+| 조건 | p95 | error_rate |
+|------|-----|-----------|
+| 캐시 warm + pod 2개 (측정 8) | 305ms | 0% |
+| 캐시 cold/partial + pod 4개 (측정 10) | 1,810ms | 18.5% |
+
+1000VU 환경에서 성능을 결정하는 주요 인자는 **HPA scale-out(pod 수)이 아닌 Redis 캐시 히트율**임을 확인.  
+캐시 warm 상태 → DB 쿼리 0 → HikariCP 커넥션 여유 → p95 305ms.  
+캐시 cold 상태 → 1000개 동시 요청이 DB에 몰림 → HikariCP 고갈(40 connection) → timeout 폭발.
+
+---
+
 **최종 성능 요약 (초기 대비)**
 
 | 지표 | 초기 (측정 1) | 최종 (측정 8, 1000VU) | 개선폭 |
@@ -1058,6 +1103,7 @@ docker tag ${local_image} ${ECR_REGISTRY}/.../${ecr_svc}:${IMAGE_TAG}
 | route p95 | 0% 성공 | **305ms** | 성공률 98% |
 | 처리량 | — | **428 req/s** | — |
 | 동시 사용자 | 100 VU | **1,000 VU** | 10배 확장 |
+| Soak Test | — | **200VU × 15분 안정** (p95 80ms, error 0.75%) | 장기 운영 검증 |
 
 **모니터링 구성**
 
@@ -1077,7 +1123,7 @@ docker tag ${local_image} ${ECR_REGISTRY}/.../${ecr_svc}:${IMAGE_TAG}
 | CORS 설정 | `CorsConfig`로 허용 origin 분리 관리 | 운영 도메인 환경변수 주입 |
 | 채팅 이력 | DB 저장 | 페이지네이션, 검색 기능 추가 |
 | 테스트 | JUnit 단위 + Playwright E2E | 커버리지 측정 및 CI 단계 통합 |
-| 부하 테스트 | ✅ k6 3라운드 완료 | backend replica 증설 또는 Redis 캐싱으로 추가 개선 가능 |
+| 부하 테스트 | ✅ k6 4라운드 완료 (Stress × 3 + Soak × 1) | HPA 적용 완료, 캐시 히트율이 1000VU 성능의 핵심 인자로 확인 |
 
 ---
 
