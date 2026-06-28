@@ -134,6 +134,8 @@ pipeline {
                         scp -i ${SSH_KEY} -o StrictHostKeyChecking=no \
                             ${WORKSPACE}/k8s/backend-deployment.yaml \
                             ${WORKSPACE}/k8s/backend-hpa.yaml \
+                            ${WORKSPACE}/k8s/backend-pdb.yaml \
+                            ${WORKSPACE}/k8s/rate-limit-middleware.yaml \
                             ${WORKSPACE}/k8s/frontend-deployment.yaml \
                             ${WORKSPACE}/k8s/ai-server-deployment.yaml \
                             ${WORKSPACE}/k8s/redis-deployment.yaml \
@@ -143,8 +145,10 @@ pipeline {
                         # kubectl apply 후 rollout restart로 새 이미지 반영
                         ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${K3S_USER}@${K3S_HOST} "
                             sudo kubectl apply -f /tmp/redis-deployment.yaml
+                            sudo kubectl apply -f /tmp/rate-limit-middleware.yaml
                             sudo kubectl apply -f /tmp/backend-deployment.yaml
                             sudo kubectl apply -f /tmp/backend-hpa.yaml
+                            sudo kubectl apply -f /tmp/backend-pdb.yaml
                             sudo kubectl apply -f /tmp/frontend-deployment.yaml
                             sudo kubectl apply -f /tmp/ai-server-deployment.yaml
                             sudo kubectl apply -f /tmp/ingress.yaml

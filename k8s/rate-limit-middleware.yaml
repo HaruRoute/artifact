@@ -1,0 +1,14 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: rate-limit
+  namespace: default
+spec:
+  rateLimit:
+    # IP당 초당 평균 100 req, 순간 최대 200 req 허용
+    average: 100
+    burst: 200
+    period: 1s
+    sourceCriterion:
+      ipStrategy:
+        depth: 1

@@ -3,6 +3,8 @@ kind: Ingress
 metadata:
   name: haruroute-ingress
   namespace: default
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: default-rate-limit@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:

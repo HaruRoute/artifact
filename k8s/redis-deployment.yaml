@@ -1,3 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -18,11 +30,20 @@ spec:
           image: redis:7-alpine
           ports:
             - containerPort: 6379
+          # RDB: 60초 내 1건 이상 변경 시 /data/dump.rdb 스냅샷 저장
+          command: ["redis-server", "--save", "60", "1", "--dir", "/data"]
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
           resources:
             limits:
               memory: "128Mi"
             requests:
               memory: "64Mi"
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: redis-pvc
 ---
 apiVersion: v1
 kind: Service
