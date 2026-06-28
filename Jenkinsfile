@@ -89,7 +89,29 @@ pipeline {
             }
         }
 
-        // ── 3. Docker 이미지 빌드 ──────────────────────────────────
+        // ── 3. 백엔드 단위 테스트 ─────────────────────────────────
+        stage('Test') {
+            steps {
+                sh '''
+                    docker run --rm \
+                        -v "${DEPLOY_DIR}/backend":/app \
+                        -v "${HOME}/.m2":/root/.m2 \
+                        -w /app \
+                        maven:3.9-eclipse-temurin-21 \
+                        mvn test \
+                            -Dtest="!BackendApplicationTests" \
+                            -DfailIfNoTests=false \
+                            --no-transfer-progress
+                '''
+            }
+            post {
+                always {
+                    junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
+                }
+            }
+        }
+
+        // ── 4. Docker 이미지 빌드 ──────────────────────────────────
         stage('Build') {
             steps {
                 sh '''
@@ -99,7 +121,7 @@ pipeline {
             }
         }
 
-        // ── 4. ECR Push ────────────────────────────────────────────
+        // ── 5. ECR Push ────────────────────────────────────────────
         stage('Push to ECR') {
             steps {
                 sh '''
@@ -120,7 +142,7 @@ pipeline {
             }
         }
 
-        // ── 5. k3s 클러스터에 배포 ─────────────────────────────────
+        // ── 6. k3s 클러스터에 배포 ─────────────────────────────────
         stage('Deploy to k3s') {
             steps {
                 withCredentials([sshUserPrivateKey(
@@ -162,7 +184,7 @@ pipeline {
             }
         }
 
-        // ── 6. 헬스 체크 ───────────────────────────────────────────
+        // ── 7. 헬스 체크 ───────────────────────────────────────────
         stage('Health Check') {
             steps {
                 sh """

@@ -19,7 +19,7 @@ scrape_configs:
   # Jenkins EC2 Node Exporter (Jenkins 서버 메트릭)
   - job_name: 'jenkins-node'
     static_configs:
-      - targets: ['localhost:9100']
+      - targets: ['172.17.0.1:9100']  # Docker 브리지에서 호스트 접근
     scrape_interval: 15s
 
   # Prometheus 자체 메트릭
