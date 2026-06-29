@@ -19,7 +19,7 @@
 | 항목 | 내용 |
 |------|------|
 | 프로젝트명 | 관광지 추천 챗봇 |
-| 개발 기간 | 2026.05 ~ 2026.06 |
+| 개발 기간 | 2026.05.12 ~ 2026.06.29 |
 | 개발 인원 | 3인 팀 프로젝트 (방지섭·이경호·이유정) |
 | 핵심 기술 | RAG, Vector DB, Spring Boot, Vue.js 3, FastAPI |
 | 인프라 | Docker, Kubernetes(k3s), AWS(EC2·RDS·ECR), Jenkins CI/CD |
