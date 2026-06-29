@@ -26,6 +26,7 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_SERVER_ROOT_URL=http://54.172.210.38:3000
     volumes:
+      - ./grafana.ini:/etc/grafana/grafana.ini:ro
       - grafana_data:/var/lib/grafana
     depends_on:
       - prometheus

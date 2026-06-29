@@ -141,7 +141,19 @@ ECR 인증 토큰은 12시간 유효. EC2 재시작 후 토큰 만료로 `ImageP
 
 ## 📅 주요 업데이트 및 개선 사항
 
-### 14) 2026-06-25: CI/CD + k8s 인프라 구축 (최신)
+### 15) 2026-06-29: Grafana 알람 룰 수정 + 모바일 UX 개선 (최신)
+
+* **Monitoring — Grafana 알람 룰 평가 오류 수정 (`monitoring/docker-compose.yml`)**:
+  - Grafana 10.x Unified Alerting의 expression `type: "threshold"`는 reduce된 스칼라 값만 입력으로 받는데, Prometheus 쿼리 결과가 `timeseries-multi`를 반환하여 매 평가마다 `resultError → execErrState=OK → Normal` 으로 처리되던 문제를 수정했습니다.
+  - 3개 알람 룰(CPU 80%, JVM Heap 85%, HTTP 5xx 5%) 모두 `type: "classic_conditions"`로 변경하여 내부 reducer가 timeseries를 스칼라로 변환한 뒤 threshold 비교가 정상 수행되도록 했습니다.
+  - `GF_SERVER_ROOT_URL=http://54.172.210.38:3000` 설정으로 Discord 알람 내 링크가 localhost 대신 실제 IP를 가리키도록 수정했습니다.
+  - Discord에서 `[RESOLVED] CPU Usage > 80%` 알람 수신으로 end-to-end 동작 확인.
+
+* **Frontend — 모바일 "현재 위치에서 검색" 버튼 위치 수정 (`Map.vue`)**:
+  - 모바일(768px 이하)에서 검색 패널(`search-panel-card`)이 세로로 확장되며 같은 위치(`top: 16px; right: 16px`)에 있는 "현재 위치에서 검색" 버튼을 덮어 터치가 불가능하던 문제를 수정했습니다.
+  - `@media (max-width: 768px)`에서 `.location-btn-wrapper`의 `top`을 `bottom: 16px`로 재배치하여 지도 하단 우측에 표시되도록 개선했습니다.
+
+### 14) 2026-06-25: CI/CD + k8s 인프라 구축
 
 * **CI/CD 파이프라인 구축 (Jenkins + Amazon ECR + k3s)**:
   - GitHub push → Jenkins Webhook → Docker 빌드 → ECR push → k3s 자동 배포까지 완전 자동화된 파이프라인을 구성했습니다.
